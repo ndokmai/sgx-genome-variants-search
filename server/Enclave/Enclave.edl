@@ -1,0 +1,69 @@
+/*
+
+Copyright 2018 Intel Corporation
+
+This software and the related documents are Intel copyrighted materials,
+and your use of them is governed by the express license under which they
+were provided to you (License). Unless the License provides otherwise,
+you may not use, modify, copy, publish, distribute, disclose or transmit
+this software or the related documents without Intel's prior written
+permission.
+
+This software and the related documents are provided as is, with no
+express or implied warranties, other than those that are expressly stated
+in the License.
+
+*/
+
+#include "../include/config.h"
+
+enclave {
+	include "sgx_trts.h"
+	include "sgx_utils.h"
+	include "sgx_tkey_exchange.h"
+
+	from "sgx_tkey_exchange.edl" import *;
+
+	trusted {
+		include "config.h"
+		public sgx_status_t get_report([out] sgx_report_t *report,
+			[in] sgx_target_info_t *target_info);
+
+		public size_t get_pse_manifest_size();
+
+		public sgx_status_t get_pse_manifest([out, count=sz] char *buf, size_t sz);
+
+		public sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
+			[out] sgx_ra_context_t *ctx, [out] sgx_status_t *pse_status);
+
+		public sgx_status_t enclave_ra_init_def(int b_pse,
+			[out] sgx_ra_context_t *ctx, [out] sgx_status_t *pse_status);
+
+                public sgx_status_t enclave_ra_close(sgx_ra_context_t ctx);
+
+                // application
+                public void enclave_derive_key(sgx_ra_context_t ctx);
+
+                public void init_sum_magic();
+
+                public void sum_magic();
+
+                public void finalize_sum_magic([out, size=8] long* result);
+
+                public void enclave_in_function([in, size=len] char *buf, size_t len);
+
+                public void enclave_out_function([out, size=len] char *buf, size_t len);
+
+                public int enclave_decrypt_for_me(sgx_ra_context_t ctx, 
+                                                    [in, size=ciphertext_len] unsigned char *ciphertext, 
+                                                    int ciphertext_len, 
+                                                    [user_check] unsigned char *plaintext,
+                                                    [out, size=16] uint8_t *sk);
+        };
+    
+	untrusted {
+		include "config.h"
+	};
+};
+
+
