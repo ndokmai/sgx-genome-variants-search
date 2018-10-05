@@ -6,3 +6,6 @@ app
 *.so
 Enclave_u.*
 Enclave_t.*
+server/settings
+service_provider/settings
+.*.swp

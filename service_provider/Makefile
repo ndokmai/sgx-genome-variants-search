@@ -10,8 +10,10 @@ CXXFLAGS=-std=c++17 -g -fpermissive -Wall
 
 
 LDFLAGS= -L$(OPENSSL_DIR)/lib \
+	 -Wl,-rpath=$(OPENSSL_DIR)/lib \
 	 -Wl,--start-group -Wl,-Bstatic \
 	 -Wl,-Bdynamic -lcurl -lssl -lcrypto -Wl,--end-group
+
 
 CXXINCFLAGS=-I. -I$(BASE_DIR)/include -I$(SGXSDK_DIR)/include -I$(OPENSSL_DIR)/include
 COMPILE=$(CXX) $(CXXFLAGS) $(CXXINCFLAGS) -c $< -o $@

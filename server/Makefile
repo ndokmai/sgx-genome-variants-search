@@ -54,6 +54,7 @@ else
 endif
 
 App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -L$(OpenSSL_Path)/lib \
+    -Wl,-rpath=$(OpenSSL_Path)/lib \
     -l$(Urts_Library_Name) -Wl,-Bstatic -lsgx_capable -Wl,-Bdynamic -lsgx_ukey_exchange -lpthread -ldl -lcurl -lssl -lcrypto -Wl,--as-needed
 
 ifneq ($(SGX_MODE), HW)
