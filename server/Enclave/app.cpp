@@ -58,3 +58,20 @@ int enclave_decrypt_for_me(sgx_ra_context_t ctx, unsigned char *ciphertext, int 
     size_t plen = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
     return plen;
 }
+
+// Put this in the edl
+/*
+void enclave_decrypt_safe(sgx_ra_context_t ctx, unsigned char* ciphertext, int ciphertext_len)
+{
+    uint8_t sk[16];
+
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+    enclave_getkey(sk);
+    memcpy(_sk, sk, 16);
+
+    size_t plen = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	delete[] plaintext;
+}
+*/

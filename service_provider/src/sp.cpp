@@ -7,8 +7,6 @@
 #include "ra.h"
 #include "msgio.h"
 
-
-
 int parse(char* process_name, char* port, config_t &config)
 {
     // call the script to generate args file
@@ -46,32 +44,49 @@ int parse(char* process_name, char* port, config_t &config)
 
 }
 
-void app(MsgIO *msgio)
+void app_test1(MsgIO* msgio)
 {
-    // Encrypt a plaintext 
-    char* plaintext = "The quick brown fox jumps over the lazy dog";
-    fprintf(stderr, "Plaintext: %s\n", plaintext);
-    msgio->send_bin_encrypted(plaintext, strlen(plaintext)+1);
-
-    // Send big test data
-    fprintf(stderr, "Send big test data\n");
-    constexpr long long N = 1024*1024*1024;
-    auto test_data = new uint8_t[N];
-    memset(test_data, 1, N);
-    msgio->send_bin(test_data, N);
-    delete test_data;
+	// Encrypt a plaintext 
+	char* plaintext = "The quick brown fox jumps over the lazy dog";
+	fprintf(stderr, "Plaintext: %s\n", plaintext);
+	msgio->send_bin_encrypted(plaintext, strlen(plaintext) + 1);
 }
 
-int main(int argc, char *argv[]) {
+void app_test2(MsgIO* msgio)
+{
+	// Send big test data
+	fprintf(stderr, "Send big test data\n");
+	constexpr long long N = 1024 * 1024 * 1024;
+	auto test_data = new uint8_t[N];
+	memset(test_data, 1, N);
+	msgio->send_bin(test_data, N);
+    delete[] test_data;
+}
 
-    config_t config;
-    MsgIO *msgio;
-    parse(argv[0], argv[1], config);
-    if(!connect(config, &msgio)) 
-    {
-        remote_attestation(config, msgio);
-        app(msgio);
-        finalize(msgio, config);
-    }
-    return 0;
+void app_test3(MsgIO* msgio)
+{
+	// Send big test data with encryption
+	fprintf(stderr, "Send big test data\n");
+	constexpr long long N = 10 * 10;
+	auto test_data = new uint32_t[N];
+	for(int i = 0; i < N; i++)
+	{
+		test_data[i] = 100000;
+	}
+	msgio->send_bin_encrypted(test_data, N * sizeof(uint32_t));
+	delete[] test_data;
+}
+
+int main(int argc, char** argv)
+{
+	config_t config;
+	MsgIO* msgio;
+	parse(argv[0], argv[1], config);
+	if(!connect(config, &msgio)) 
+	{
+		remote_attestation(config, msgio);
+		app_test3(msgio);
+		finalize(msgio, config);
+	}
+	return 0;
 }
