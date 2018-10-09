@@ -44,179 +44,73 @@ int parse(char* process_name, char* host_port, config_t &config)
     system("rm _args_");
 }
 
-void app_test1(MsgIO* msgio, config_t& config)
+void app(MsgIO* msgio, config_t& config)
 {
+	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
+
+	// Get the Remote Attestation context from the configuration
 	auto& ra_ctx = config.ra_ctx;
 
-	unsigned char* ciphertext;
-	size_t clen;
-	msgio->read_bin(&ciphertext, &clen);
-	fprintf(stderr, "IV + Ciphertext: ");
-	for(size_t i = 0; i < clen; i++)
-	{
-		fprintf(stderr, "%02x", ciphertext[i]);
-	}
-	fprintf(stderr, "\n");
-
-	// Plaintext length can't be longer than ciphertext length
-	char* plaintext = new char[clen];
-	size_t plen;
-	uint8_t sk[16] = {0};
-	enclave_decrypt_for_me(eid, (int*) &plen, ra_ctx, ciphertext, clen, plaintext, sk);
-	fprintf(stderr, "Plaintext: %s\n", plaintext);
-    
-	fprintf(stderr, "Key: ");
-	for(size_t i = 0; i < 16; i++)
-	{
-		fprintf(stderr, "%02x", sk[i]);
-	}
-	fprintf(stderr, "\n");
-	delete[] plaintext;
-	delete[] ciphertext;
-}
-
-void app_test2(MsgIO* msgio, config_t& config) 
-{
-	auto& eid = config.eid;
-	auto& ra_ctx = config.ra_ctx;
-
-	const size_t BUFFER_SIZE = (1 << 6) * 1024;
-
-	// Receive big test data
-	fprintf(stderr, "Receive big test data\n");
-	uint8_t* test_data;
-	size_t idx = 0;
-	size_t N;
-	msgio->read_bin(&test_data, &N);
-
-	fprintf(stderr, "---- in buffer -----------------------------------------------------------\n");
-	long test_sum = 0;
-	for(size_t i = 0; i < N; i++)
-	{
-		test_sum += (long) test_data[i];
-	}
-	fprintf(stderr, "test sum: %ld\n", test_sum);
-	fprintf(stderr, "\n----------------------------------------------------------------------------\n");
-    
+	// Start timer
 	std::clock_t start;
 	double duration;
 	start = std::clock();
-	init_sum_magic(eid);
-	while(idx != N)
+
+	// Make an ECALL to initialize the Enclave data structures
+	enclave_init_sum(eid);
+
+	// First, receive the total number of elements to be received
+	uint8_t* num_elems_buf;
+	size_t len_num_elems;
+	msgio->read_bin(&num_elems_buf, &len_num_elems);
+	uint64_t num_elems = ((uint64_t*) num_elems_buf)[0];
+	fprintf(stderr, "num_elems: %llu\n", (unsigned long long) num_elems);
+
+	// Set the chunk size for receiving large data
+	uint32_t chunk_size = 128000;
+
+	// Now, receive and process next data chunk until all data is processed
+	fprintf(stderr, "Receiving data (encrypted) ...\n");
+	uint32_t num_elems_rem = num_elems;
+	uint32_t num_elems_rcvd = 0;
+	while(num_elems_rcvd != num_elems)
 	{
-		size_t toread_bytes = 0;
-		if(N > BUFFER_SIZE)
+		size_t to_read_elems = 0;
+		if(num_elems_rem < chunk_size)
 		{
-			toread_bytes = BUFFER_SIZE;
+			to_read_elems = num_elems_rem;
 		}
 		else
 		{
-			toread_bytes = N;
+			to_read_elems = chunk_size;
 		}
-		//fprintf(stderr, "toread: %ld\n", toread_bytes);
-		auto status =  enclave_in_function(eid, test_data+idx, toread_bytes);
-		//fprintf(stderr, "status: %d\n", status);
-		sum_magic(eid);
-		idx += toread_bytes;
+		
+		// Receive data (encrypted)
+		uint8_t* ciphertext;
+		size_t ciphertext_len;
+		msgio->read_bin(&ciphertext, &ciphertext_len);
+
+		// Make an ECALL to decrypt the data and process it inside the Enclave
+		enclave_decrypt_process(eid, ra_ctx, ciphertext, ciphertext_len);
+
+		num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+		num_elems_rem = num_elems_rem - to_read_elems;
+
+		// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+		delete[] ciphertext;
 	}
 
-	long result = 0;
-	finalize_sum_magic(eid, &result);
-	duration = ( std::clock() - start  ) / (double) CLOCKS_PER_SEC;
+	// Make an ECALL to receive the result
+	uint64_t result = 0;
+	enclave_get_result(eid, &result);
+
+	// Stop timer
+	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
+
+	// Report results
+	fprintf(stderr, "result: %lu\n", (unsigned long) result);
 	fprintf(stderr, "time: %lf\n", duration);
-	fprintf(stderr, "result: %ld\n", result);
-}
-
-void app_test3(MsgIO* msgio, config_t& config)
-{
-	auto& eid = config.eid;
-	auto& ra_ctx = config.ra_ctx;
-	uint8_t sk[16] = {0};
-
-	// Set the intermediary buffer size between the app and the enclave
-	const size_t BUFFER_SIZE = (1 << 6) * 1024;
-
-	// Receive big test data (encrypted)
-	fprintf(stderr, "Receive big test data\n");
-	uint8_t* test_data_ciphertext;
-	size_t idx = 0;
-	size_t ciphertext_len;
-	msgio->read_bin(&test_data_ciphertext, &ciphertext_len);
-
-	/*
-	fprintf(stderr, "IV + Ciphertext: ");
-	for(size_t i = 0; i < ciphertext_len; i++)
-	{
-		fprintf(stderr, "%02x", test_data_ciphertext[i]);
-	}
-	fprintf(stderr, "\n");
-	*/
-
-	// Plaintext length can't be longer than ciphertext length
-	uint8_t* ptext = new uint8_t[ciphertext_len];
-	size_t ptext_len;
-	enclave_decrypt_for_me(eid, (int*) &ptext_len, ra_ctx, test_data_ciphertext, ciphertext_len, ptext, sk);
-
-	/*
-	fprintf(stderr, "Plaintext:\n");
-	for(size_t i = 0; i < ptext_len / 4; i ++)
-	{
-		uint32_t val = ((uint32_t*) ptext) [i];
-		fprintf(stderr, "%d\n", val);
-	}
-	fprintf(stderr, "\n");
-
-	fprintf(stderr, "Key: ");
-	for(size_t i = 0; i < 16; i++)
-	{
-		fprintf(stderr, "%02x", sk[i]);
-	}
-	fprintf(stderr, "\n");
-	*/
-
-	fprintf(stderr, "---- in buffer -----------------------------------------------------------\n");
-	long test_sum = 0;
-	for(size_t i = 0; i < ptext_len / 4; i++)
-	{
-		uint32_t val = ((uint32_t*) ptext) [i];
-		test_sum = test_sum + val;
-	}
-	fprintf(stderr, "test sum: %ld\n", test_sum);
-	fprintf(stderr, "\n----------------------------------------------------------------------------\n");
-
-	/*
-	std::clock_t start;
-	double duration;
-	start = std::clock();
-	init_sum_magic(eid);
-	while(idx != ptext_len)
-	{
-		size_t toread_bytes = 0;
-		if(N > BUFFER_SIZE)
-		{
-			toread_bytes = BUFFER_SIZE;
-		}
-		else
-		{
-			toread_bytes = ptext_len;
-		}
-		//fprintf(stderr, "toread: %ld\n", toread_bytes);
-		auto status =  enclave_in_function(eid, ptext + idx, toread_bytes);
-		//fprintf(stderr, "status: %d\n", status);
-		sum_magic(eid);
-		idx += toread_bytes;
-	}
-
-	long result = 0;
-	finalize_sum_magic(eid, &result);
-	duration = ( std::clock() - start  ) / (double) CLOCKS_PER_SEC;
-	fprintf(stderr, "time: %lf\n", duration);
-	fprintf(stderr, "result: %ld\n", result);
-	*/
-
-	delete[] ptext;
-	delete[] test_data_ciphertext;
 }
 
 int main(int argc, char** argv)
@@ -226,7 +120,7 @@ int main(int argc, char** argv)
 	parse(argv[0], argv[1], config);
 	if(!remote_attestation(config, &msgio))
 	{
-		app_test3(msgio, config);
+		app(msgio, config);
 		finalize(msgio, config);
 	}
 }

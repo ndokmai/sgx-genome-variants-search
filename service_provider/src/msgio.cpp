@@ -370,6 +370,8 @@ void MsgIO::send_bin_encrypted(void *buf, size_t f_size)
     memcpy(msg, iv, sizeof(iv));
     aescbc_encrypt((unsigned char *)buf, f_size, sk, iv, msg+sizeof(iv));
     send_bin(msg, msg_len);
+
+	/*
     if (debug) {
         fprintf(stderr, "IV+Ciphertext: ");
         for(size_t i=0; i<msg_len; i++) {
@@ -377,6 +379,8 @@ void MsgIO::send_bin_encrypted(void *buf, size_t f_size)
         }
         fprintf(stderr, "\n");
     }
+	*/
+
     free(msg);
 }
 

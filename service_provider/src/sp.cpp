@@ -41,40 +41,54 @@ int parse(char* process_name, char* port, config_t &config)
 
     // clean up the args file 
     system("rm _args_");
-
 }
 
-void app_test1(MsgIO* msgio)
+void app(MsgIO* msgio)
 {
-	// Encrypt a plaintext 
-	char* plaintext = "The quick brown fox jumps over the lazy dog";
-	fprintf(stderr, "Plaintext: %s\n", plaintext);
-	msgio->send_bin_encrypted(plaintext, strlen(plaintext) + 1);
-}
+	// For sending large data (greater than the enclave buffer can hold at once), we need to break it into chunks
+	// The following example app demonstrates this
 
-void app_test2(MsgIO* msgio)
-{
-	// Send big test data
-	fprintf(stderr, "Send big test data\n");
-	constexpr long long N = 1024 * 1024 * 1024;
-	auto test_data = new uint8_t[N];
-	memset(test_data, 1, N);
-	msgio->send_bin(test_data, N);
-    delete[] test_data;
-}
+	// First, determine the total number of elements we are going to send
+	uint64_t num_elems = 2 * 100000 * 10000;
 
-void app_test3(MsgIO* msgio)
-{
-	// Send big test data with encryption
-	fprintf(stderr, "Send big test data\n");
-	constexpr long long N = 10 * 10;
-	auto test_data = new uint32_t[N];
-	for(int i = 0; i < N; i++)
+	// Initialize the data
+	auto data = new uint32_t[num_elems];
+	for(int i = 0; i < num_elems; i++)
 	{
-		test_data[i] = 100000;
+		data[i] = 1;
 	}
-	msgio->send_bin_encrypted(test_data, N * sizeof(uint32_t));
-	delete[] test_data;
+
+	// Send the total number of elements we are going to send
+	auto num_elems_buf = new uint64_t[1];
+	num_elems_buf[0] = num_elems;
+	msgio->send_bin(num_elems_buf, sizeof(uint64_t));
+
+	// Number of elements to send in one round (in elements, not bytes)
+	uint32_t chunk_size = 128000;
+
+	// Send the data encrypted in chunks
+	fprintf(stderr, "Sending data (encrypted) ...\n");
+	uint32_t num_elems_rem = num_elems;
+	uint32_t num_elems_sent = 0;
+	while(num_elems_sent != num_elems)
+	{
+		uint32_t to_send_elems = 0;
+		if(num_elems_rem < chunk_size)
+		{
+			to_send_elems = num_elems_rem;
+		}
+		else
+		{
+			to_send_elems = chunk_size;
+		}
+		msgio->send_bin_encrypted(data + num_elems_sent, to_send_elems * sizeof(uint32_t));
+		num_elems_sent = num_elems_sent + to_send_elems;
+		num_elems_rem = num_elems_rem - to_send_elems;
+	}
+
+	// Free memory
+	delete[] data;
+	delete[] num_elems_buf;
 }
 
 int main(int argc, char** argv)
@@ -85,8 +99,9 @@ int main(int argc, char** argv)
 	if(!connect(config, &msgio)) 
 	{
 		remote_attestation(config, msgio);
-		app_test3(msgio);
+		app(msgio);
 		finalize(msgio, config);
 	}
+
 	return 0;
 }
