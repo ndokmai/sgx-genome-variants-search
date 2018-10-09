@@ -49,7 +49,7 @@ void app(MsgIO* msgio)
 	// The following example app demonstrates this
 
 	// First, determine the total number of elements we are going to send
-	uint64_t num_elems = 2 * 100000 * 10000;
+	uint64_t num_elems = 1000000000;
 
 	// Initialize the data
 	auto data = new uint32_t[num_elems];
@@ -64,7 +64,7 @@ void app(MsgIO* msgio)
 	msgio->send_bin(num_elems_buf, sizeof(uint64_t));
 
 	// Number of elements to send in one round (in elements, not bytes)
-	uint32_t chunk_size = 128000;
+	uint32_t chunk_size = 16000;
 
 	// Send the data encrypted in chunks
 	fprintf(stderr, "Sending data (encrypted) ...\n");

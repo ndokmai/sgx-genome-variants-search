@@ -68,7 +68,7 @@ void app(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "num_elems: %llu\n", (unsigned long long) num_elems);
 
 	// Set the chunk size for receiving large data
-	uint32_t chunk_size = 128000;
+	uint32_t chunk_size = 16000;
 
 	// Now, receive and process next data chunk until all data is processed
 	fprintf(stderr, "Receiving data (encrypted) ...\n");
