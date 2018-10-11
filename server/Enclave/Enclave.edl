@@ -29,7 +29,7 @@ enclave
 
 		public void enclave_init_sum();
 
-		public void enclave_out_function([out, size = len] char* buf, size_t len);
+		//public void enclave_out_function([out, size = len] char* buf, size_t len);
 
 		public int enclave_decrypt_for_me(sgx_ra_context_t ctx,
 											[in, size = ciphertext_len] unsigned char* ciphertext, 
@@ -37,11 +37,23 @@ enclave
 											[user_check] unsigned char* plaintext,
 											[out, size = 16] uint8_t* sk);
 
+//		public void enclave_decrypt_process(sgx_ra_context_t ctx,
+//											[in, size = ciphertext_len] uint8_t* ciphertext,
+//											size_t ciphertext_len);
 		public void enclave_decrypt_process(sgx_ra_context_t ctx,
-											[in, size = ciphertext_len] uint8_t* ciphertext,
+											[user_check] uint8_t* ciphertext,
 											size_t ciphertext_len);
 
 		public void enclave_get_result([out, size = 8] uint64_t* result);
+
+		// Robin-Hood-Hash-Table public ECALL interface
+		public void enclave_init_rhht();
+
+		public void enclave_decrypt_process_rhht(sgx_ra_context_t ctx,
+													[user_check] uint8_t* ciphertext,
+													size_t ciphertext_len,
+													uint32_t type);
+//													uint32_t chunk_num);
 	};
     
 	untrusted
