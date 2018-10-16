@@ -234,7 +234,14 @@ void app(MsgIO* msgio, config_t& config)
 	}
 
 	// Make an ECALL to perform the chi-squared test
+	init_chi_sq(eid, case_count, control_count);
 	// Make an ECALL to receive the result
+	uint32_t my_res[10];
+	enclave_get_res_buf(eid, my_res);
+	for(int i = 0; i < 10; i++)
+	{
+		fprintf(stderr, "%lu\n", (unsigned long) my_res[i]);
+	}
 	//uint64_t result = 0;
 	//enclave_get_result_rhht(eid, &result);
 

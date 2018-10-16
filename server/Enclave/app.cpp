@@ -10,6 +10,7 @@
 
 #define	ENC_OUTBUF_LEN	256
 uint32_t enclave_output_buffer[ENC_OUTBUF_LEN];
+uint32_t res_buf[10];
 
 /*************** BEGIN: Robin Hood Hash Table ***************/
 #define RHHT_INIT_CAPACITY	8388608
@@ -206,6 +207,7 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 	uint32_t num_elems = plaintext_len / 4;
 
 	// Process data
+	/*
 	size_t i;
 	for(i = 2; i < num_elems; i++)
 	{
@@ -222,7 +224,8 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 			insert(elem_id, 1, 1);
 		}
 	}
-	/*
+	*/
+
 	size_t i;
 	uint32_t het_start_idx = ((uint32_t*) plaintext) [1];
 	for(i = 2; i < het_start_idx + 2; i++)
@@ -286,7 +289,6 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 			}
 		}
 	}
-	*/
 
 	// We've processed the data, now clear it
 	delete[] plaintext;
@@ -451,6 +453,9 @@ void init_chi_sq(uint16_t case_total, uint16_t control_total)
 	{
 		double pval = pochisq((double) top_k_chi_sq[i]);
 		//mysgx_printf("rs%-30d\t%-30f\t%-30.8f\n", top_k_ids[i], top_k_chi_sq[i], pval);
+
+		// Proper output test
+		res_buf[i] = top_k_ids[i];
 	}
 	//mysgx_printf("\n");
 }
@@ -467,6 +472,11 @@ void enclave_init_sum()
 void enclave_get_result(uint64_t* result)
 {
 	memcpy(result, &sum, sizeof(uint64_t));
+}
+
+void enclave_get_res_buf(uint32_t* res)
+{
+	memcpy(res, &res_buf, 10 * sizeof(uint32_t));
 }
 
 /*void enclave_out_function(char* buf, size_t len)

@@ -106,8 +106,8 @@ void app(MsgIO* msgio)
 	uint32_t chunk_size = 500000;
 
 	// Set the file directories
-	char* case_dir = "/home/ckockan/test-data/case_ckz0";
-	char* control_dir = "/home/ckockan/test-data/control_ckz0";
+	char* case_dir = "/home/ckockan/test-data/case_ckz0/";
+	char* control_dir = "/home/ckockan/test-data/control_ckz0/";
 
 	// For checking the return values
 	size_t elems_read;
@@ -149,7 +149,7 @@ void app(MsgIO* msgio)
 
 					// Get the size of the file (in bytes)
 					uint32_t file_size = (uint32_t) ftell(file);
-					//fprintf(stderr, "Size of file: %d bytes.\n", file_size);
+					fprintf(stderr, "\tSize of file: %d bytes.\n", file_size);
 
 					// Each element in the file should bea 32-bit unsigned integer
 					// Therefore we can calculate the total number of elements to be sent for the file
@@ -243,7 +243,7 @@ void app(MsgIO* msgio)
 
 					// Get the size of the file (in bytes)
 					uint32_t file_size = (uint32_t) ftell(file);
-					//fprintf(stderr, "Size of file: %d bytes.\n", file_size);
+					fprintf(stderr, "\tSize of file: %d bytes.\n", file_size);
 
 					uint32_t num_elems = file_size / sizeof(uint32_t);
 

@@ -45,6 +45,7 @@ enclave
 											size_t ciphertext_len);
 
 		public void enclave_get_result([out, size = 8] uint64_t* result);
+		public void enclave_get_res_buf([out, size = 40] uint32_t* res);
 
 		// Robin-Hood-Hash-Table public ECALL interface
 		public void enclave_init_rhht();
@@ -54,6 +55,9 @@ enclave
 													size_t ciphertext_len,
 													uint32_t type);
 //													uint32_t chunk_num);
+
+		// Chi-Squared Test public ECALL interface
+		public void init_chi_sq(uint16_t case_count, uint16_t control_count);
 	};
     
 	untrusted
