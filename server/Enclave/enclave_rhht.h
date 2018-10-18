@@ -3,7 +3,6 @@
 
 #include "inttypes.h"
 
-#define RHHT_INIT_CAPACITY	(1 << 23)
 #define LOAD_FACTOR_PERCENT	95
 
 extern struct rhht_table* rhht_snp_table;
@@ -23,9 +22,7 @@ struct rhht_table
 	uint32_t resize_threshold;
 };
 
-void allocate_table();
-
-void reallocate_table(uint32_t new_capacity);
+void allocate_table(uint32_t capacity);
 
 void construct(uint32_t index, uint32_t key, uint16_t case_count, uint16_t control_count);
 

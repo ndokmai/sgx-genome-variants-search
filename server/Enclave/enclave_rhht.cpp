@@ -4,41 +4,21 @@
 struct rhht_table* rhht_snp_table = NULL;
 
 // Allocate memory for SNP hash table
-void allocate_table()
+void allocate_table(uint32_t capacity)
 {
 	// Allocate memory for the top hash_table structure
 	rhht_snp_table = (struct rhht_table*) malloc(sizeof(struct rhht_table));
 
 	// Initialization
 	rhht_snp_table->num_elems = 0;
-	rhht_snp_table->capacity = RHHT_INIT_CAPACITY;
-	rhht_snp_table->resize_threshold = (RHHT_INIT_CAPACITY * LOAD_FACTOR_PERCENT) / 100;
+	rhht_snp_table->capacity = capacity;
+	rhht_snp_table->resize_threshold = (capacity * LOAD_FACTOR_PERCENT) / 100;
 
 	// Allocate memory for the actual element buffer 
-	rhht_snp_table->buffer = (struct elem*) malloc(RHHT_INIT_CAPACITY * sizeof(struct elem));
+	rhht_snp_table->buffer = (struct elem*) malloc(capacity * sizeof(struct elem));
 
 	// Mark all elements as unused
-	for(uint32_t i = 0; i < RHHT_INIT_CAPACITY; i++)
-	{
-		rhht_snp_table->buffer[i].key = 0;
-	}
-}
-
-void reallocate_table(uint32_t new_capacity)
-{
-	// Allocate memory for the top hash_table structure
-	rhht_snp_table = (struct rhht_table*) malloc(sizeof(struct rhht_table));
-
-	// Initialization
-	rhht_snp_table->num_elems = 0;
-	rhht_snp_table->capacity = new_capacity;
-	rhht_snp_table->resize_threshold = (new_capacity * LOAD_FACTOR_PERCENT) / 100;
-
-	// Allocate memory for the actual element buffer 
-	rhht_snp_table->buffer = (struct elem*) malloc(new_capacity * sizeof(struct elem));
-
-	// Mark all elements as unused
-	for(uint32_t i = 0; i < new_capacity; i++)
+	for(uint32_t i = 0; i < capacity; i++)
 	{
 		rhht_snp_table->buffer[i].key = 0;
 	}
@@ -66,7 +46,7 @@ void grow()
 	uint32_t old_capacity = rhht_snp_table->capacity;
 	uint32_t new_capacity = old_capacity * 2;
 
-	reallocate_table(new_capacity);
+	allocate_table(new_capacity);
 
 	for(uint32_t i = 0; i < old_capacity; i++)
 	{

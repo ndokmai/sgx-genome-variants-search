@@ -56,6 +56,10 @@ enclave
 													uint32_t type);
 //													uint32_t chunk_num);
 
+		// Chained-Move-to-Front Hash Table public ECALL interface
+		public void enclave_init_cmtf();
+		public void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len, uint32_t type); // uint32_t chunk_num)
+
 		// Chi-Squared Test public ECALL interface
 		public void init_chi_sq(uint16_t case_count, uint16_t control_count);
 	};

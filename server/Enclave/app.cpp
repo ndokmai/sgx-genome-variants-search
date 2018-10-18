@@ -7,10 +7,14 @@
 #include "Enclave_t.h"
 #include "enclave_crypto.h"
 #include "enclave_rhht.h"
+#include "enclave_cmtf.h"
 #include "math.h"
 
 #define	ENC_OUTBUF_LEN	256
 #define ENC_RESBUF_LEN	10
+
+#define RHHT_INIT_CAPACITY	(1 << 23)
+#define CMTF_NUM_BUCKETS	(1 << 23)
 
 // Global Enclave Buffers
 uint32_t enclave_output_buffer[ENC_OUTBUF_LEN];
@@ -19,7 +23,7 @@ uint32_t res_buf[ENC_RESBUF_LEN];
 /***** BEGIN: Enclave Robin-Hood Hash Table Public Interface *****/
 void enclave_init_rhht()
 {
-	allocate_table();
+	allocate_table(RHHT_INIT_CAPACITY);
 }
 
 void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len, uint32_t type)// uint32_t chunk_num)
@@ -108,6 +112,209 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 	delete[] plaintext;
 }
 /***** END: Enclave Robin-Hood Hash Table Public Interface *****/
+
+/***** BEGIN: Enclave Chained-Move-to-Front Hash Table Public Interface *****/
+void enclave_init_cmtf()
+{
+	cmtf_allocate_table(CMTF_NUM_BUCKETS);
+}
+
+void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len, uint32_t type)// uint32_t chunk_num)
+{
+	// Buffer to hold the secret key
+    uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+    enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	size_t i;
+	uint32_t het_start_idx = ((uint32_t*) plaintext) [1];
+	for(i = 2; i < het_start_idx + 2; i++)
+	{
+		uint32_t elem_id = ((uint32_t*) plaintext) [i];
+
+		// Compute the hash of the SNP-ID
+		uint32_t hash = elem_id & ((cmtf_snp_table->num_buckets) - 1);
+
+		// Linked List search and update with move-to-front
+		struct node** head_ptr = &(cmtf_snp_table->buckets[hash]);
+		struct node* temp = *head_ptr;
+		struct node* prev = *head_ptr;
+
+		// Empty bucket, initialize and insert
+		if(*head_ptr == NULL)
+		{
+			struct node* new_elem = (struct node*) malloc(sizeof(struct node));
+			new_elem->key = elem_id;
+			if(type == 1)
+			{
+				new_elem->case_count = 2;
+			}
+			else
+			{
+				new_elem->control_count = 2;
+			}
+			new_elem->next = NULL;
+			*head_ptr = new_elem;
+
+			cmtf_snp_table->num_buckets_used = cmtf_snp_table->num_buckets_used + 1;
+			cmtf_snp_table->num_elements = cmtf_snp_table->num_elements + 1;
+			continue;
+		}
+
+		// Non-empty bucket, search for the element with the given key
+		// Update if found and move-to-front
+		uint8_t elem_found = 0;
+		while(temp != NULL)
+		{
+			if(temp->key == elem_id)
+			{
+				if(type == 1)
+				{
+					temp->case_count = temp->case_count + 2;
+				}
+				else
+				{
+					temp->control_count = temp->control_count + 2;
+				}
+
+				if(temp != *head_ptr)
+				{
+					prev->next = temp->next;
+					temp->next = *head_ptr;
+					*head_ptr = temp;
+				}
+				elem_found = 1;
+				break;
+			}
+			else
+			{
+				prev = temp;
+				temp = temp->next;
+			}
+		}
+
+		if(elem_found)
+		{
+			continue;
+		}
+
+		// Reached the end of the chain, element not found
+		// Initialize new element and insert to the front of the list
+		struct node* new_elem = (struct node*) malloc(sizeof(struct node));
+		new_elem->key = elem_id;
+		if(type == 1)
+		{
+			new_elem->case_count = 2;
+		}
+		else
+		{
+			new_elem->control_count = 2;
+		}
+		new_elem->next = *head_ptr;
+		*head_ptr = new_elem;
+		cmtf_snp_table->num_elements = cmtf_snp_table->num_elements + 1;
+	}
+
+	for(i = het_start_idx + 2; i < num_elems; i++)
+	{
+		uint32_t elem_id = ((uint32_t*) plaintext) [i];
+
+		// Compute the hash of the SNP-ID
+		uint32_t hash = elem_id & ((cmtf_snp_table->num_buckets) - 1);
+
+		// Linked List search and update with move-to-front
+		struct node** head_ptr = &(cmtf_snp_table->buckets[hash]);
+		struct node* temp = *head_ptr;
+		struct node* prev = *head_ptr;
+
+		// Empty bucket, initialize and insert
+		if(*head_ptr == NULL)
+		{
+			struct node* new_elem = (struct node*) malloc(sizeof(struct node));
+			new_elem->key = elem_id;
+			if(type == 1)
+			{
+				new_elem->case_count = 1;
+			}
+			else
+			{
+				new_elem->control_count = 1;
+			}
+			new_elem->next = NULL;
+			*head_ptr = new_elem;
+
+			cmtf_snp_table->num_buckets_used = cmtf_snp_table->num_buckets_used + 1;
+			cmtf_snp_table->num_elements = cmtf_snp_table->num_elements + 1;
+			continue;
+		}
+
+		// Non-empty bucket, search for the element with the given key
+		// Update if found and move-to-front
+		uint8_t elem_found = 0;
+		while(temp != NULL)
+		{
+			if(temp->key == elem_id)
+			{
+				if(type == 1)
+				{
+					temp->case_count = temp->case_count + 1;
+				}
+				else
+				{
+					temp->control_count = temp->control_count + 1;
+				}
+
+				if(temp != *head_ptr)
+				{
+					prev->next = temp->next;
+					temp->next = *head_ptr;
+					*head_ptr = temp;
+				}
+				elem_found = 1;
+				break;
+			}
+			else
+			{
+				prev = temp;
+				temp = temp->next;
+			}
+		}
+
+		if(elem_found)
+		{
+			continue;
+		}
+
+		// Reached the end of the chain, element not found
+		// Initialize new element and insert to the front of the list
+		struct node* new_elem = (struct node*) malloc(sizeof(struct node));
+		new_elem->key = elem_id;
+		if(type == 1)
+		{
+			new_elem->case_count = 1;
+		}
+		else
+		{
+			new_elem->control_count = 1;
+		}
+		new_elem->next = *head_ptr;
+		*head_ptr = new_elem;
+		cmtf_snp_table->num_elements = cmtf_snp_table->num_elements + 1;
+	}
+}
+
+/***** END: Enclave Chained-Move-to-Front Hash Table Public Interface *****/
 
 /*************** BEGIN: Chi-Squared Test Functions **************/
 
