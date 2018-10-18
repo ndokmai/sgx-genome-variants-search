@@ -480,6 +480,66 @@ void init_chi_sq(uint16_t case_total, uint16_t control_total)
 	}
 	//mysgx_printf("\n");
 }
+
+void init_chi_sq_cmtf(uint16_t case_total, uint16_t control_total)
+{
+	uint32_t top_k_ids[10];
+	float top_k_chi_sq[10];
+	uint8_t num_used = 0;
+	float chi_sq_val;
+	for(uint32_t i = 0; i < cmtf_snp_table->num_buckets; i++)
+	{
+		if(cmtf_snp_table->buckets[i] != NULL)
+		{
+			struct node* temp = cmtf_snp_table->buckets[i];
+			while(temp != NULL)
+			{
+				// Calculate the chi squared value
+				chi_sq_val = chi_sq(temp->case_count, temp->control_count, case_total, control_total);
+
+				// If the top-k array is not full, add current snp without any checks
+				if(num_used < 10)
+				{
+					top_k_ids[num_used] = temp->key;
+					top_k_chi_sq[num_used] = chi_sq_val;
+					num_used = num_used + 1;
+				}
+				else
+				{
+					// Find the index of the minimum chi squared value in the top-k array
+					uint8_t index_min = 0;
+					for(uint8_t j = 1; j < 10; j++)
+					{
+						if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
+						{
+							index_min = j;
+						}
+					}
+
+					// If the chi squared value of the current element is greater than that of index min, replace
+					if(chi_sq_val > top_k_chi_sq[index_min])
+					{
+						top_k_ids[index_min] = temp->key;
+						top_k_chi_sq[index_min] = chi_sq_val;
+					}
+				}
+				temp = temp->next;
+			}
+		}
+	}
+
+	//mysgx_printf("\nTop-10 SNPs with Chi-Squared Values and P-Values\n\n");
+	for(uint8_t i = 0; i < 10; i++)
+	{
+		double pval = pochisq((double) top_k_chi_sq[i]);
+		//mysgx_printf("rs%-30d\t%-30f\t%-30.8f\n", top_k_ids[i], top_k_chi_sq[i], pval);
+
+		// Proper output test
+		res_buf[i] = top_k_ids[i];
+	}
+	//mysgx_printf("\n");
+}
+
 /*************** END: Chi-Sqaured Test Functions ***************/
 
 /*************** BEGIN: Enclave Test Program Functions ***************/

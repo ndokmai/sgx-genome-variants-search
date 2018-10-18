@@ -62,6 +62,7 @@ enclave
 
 		// Chi-Squared Test public ECALL interface
 		public void init_chi_sq(uint16_t case_count, uint16_t control_count);
+		public void init_chi_sq_cmtf(uint16_t case_total, uint16_t control_total);
 	};
     
 	untrusted
