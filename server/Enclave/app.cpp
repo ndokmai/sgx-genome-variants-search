@@ -6,187 +6,20 @@
 #include "config.h"
 #include "Enclave_t.h"
 #include "enclave_crypto.h"
+#include "enclave_rhht.h"
 #include "math.h"
 
 #define	ENC_OUTBUF_LEN	256
+#define ENC_RESBUF_LEN	10
+
+// Global Enclave Buffers
 uint32_t enclave_output_buffer[ENC_OUTBUF_LEN];
-uint32_t res_buf[10];
+uint32_t res_buf[ENC_RESBUF_LEN];
 
-/*************** BEGIN: Robin Hood Hash Table ***************/
-#define RHHT_INIT_CAPACITY	8388608
-#define LOAD_FACTOR_PERCENT	95
-
-struct elem
-{
-	uint32_t key;
-	uint16_t case_count;
-	uint16_t control_count;
-};
-
-struct hash_table
-{
-	struct elem* buffer;
-	uint32_t num_elems;
-	uint32_t capacity;
-	uint32_t resize_threshold;
-};
-
-// Hash Table for SNPs, initially NULL
-struct hash_table* snp_table = NULL;
-
-// Allocate memory for SNP hash table
-void allocate_table(uint32_t capacity)
-{
-	// Allocate memory for the top hash_table structure
-	snp_table = (struct hash_table*) malloc(sizeof(struct hash_table));
-
-	// Initialization
-	snp_table->num_elems = 0;
-	snp_table->capacity = capacity;
-	snp_table->resize_threshold = (capacity * LOAD_FACTOR_PERCENT) / 100;
-
-	// Allocate memory for the actual element buffer 
-	snp_table->buffer = (struct elem*) malloc(capacity * sizeof(struct elem));
-
-	// Mark all elements as unused
-	for(uint32_t i = 0; i < capacity; i++)
-	{
-		snp_table->buffer[i].key = 0;
-	}
-}
-
-void construct(uint32_t index, uint32_t key, uint16_t case_count, uint16_t control_count)
-{
-	snp_table->buffer[index].key = key;
-	snp_table->buffer[index].case_count = case_count;
-	snp_table->buffer[index].control_count = control_count;
-}
-
-uint32_t probe_distance(uint32_t key, uint32_t slot_index)
-{
-	//uint32_t hash = key % snp_table->capacity;
-	uint32_t hash = key & ((snp_table->capacity) - 1);
-	return (slot_index + snp_table->capacity - hash);
-}
-
-inline void insert_helper(uint32_t hash, uint32_t key, uint16_t case_count, uint16_t control_count)
-{
-	uint32_t pos = hash;
-	uint32_t dist = 0;
-	for(;;)
-	{
-		//if((snp_table->buffer[pos].key % snp_table->capacity) == 0)
-		if((snp_table->buffer[pos].key & ((snp_table->capacity) - 1)) == 0)
-		{
-			construct(pos, key, case_count, control_count);
-			return;
-		}
-
-		uint32_t existing_elem_probe_dist = probe_distance(snp_table->buffer[pos].key, pos);
-		if(existing_elem_probe_dist < dist)
-		{
-			//uint32_t temp_hash = snp_table->buffer[pos].hash;
-			uint32_t temp_key = snp_table->buffer[pos].key;
-			uint16_t temp_case_count = snp_table->buffer[pos].case_count;
-			uint16_t temp_control_count = snp_table->buffer[pos].control_count;
-			//snp_table->buffer[pos].hash = hash;
-			snp_table->buffer[pos].key = key;
-			snp_table->buffer[pos].case_count = case_count;
-			snp_table->buffer[pos].control_count = control_count;
-			//hash = temp_hash;
-			key = temp_key;
-			case_count = temp_case_count;
-			control_count = temp_control_count;
-
-			dist = existing_elem_probe_dist;
-		}
-
-		pos = pos + 1;
-		dist = dist + 1;
-	}
-}
-
-// Expand the hash table if the number of elements exceed the resize threshold
-void grow()
-{
-	//ocall_print_string("Error: This should not have happened for this run!!!\n");
-
-	struct elem* old_elems = snp_table->buffer;
-	uint32_t old_capacity = snp_table->capacity;
-
-	uint32_t new_capacity = old_capacity * 2;
-	allocate_table(new_capacity);
-
-	for(uint32_t i = 0; i < old_capacity; i++)
-	{
-		struct elem e = old_elems[i];
-		uint32_t key = e.key;
-		//uint32_t hash = key % new_capacity;
-		uint32_t hash = key & (new_capacity - 1);
-		if(key != 0)
-		{
-			insert_helper(hash, e.key, e.case_count, e.control_count);
-		}
-	}
-	free(old_elems);
-}
-
-inline void insert(uint32_t key, uint8_t allele_type, uint8_t patient_status)
-{
-	snp_table->num_elems = snp_table->num_elems + 1;
-	if(snp_table->num_elems >= snp_table->resize_threshold)
-	{
-		grow();
-	}
-
-	//uint32_t hash = key % snp_table->capacity;
-	uint32_t hash = key & ((snp_table->capacity) - 1);
-	if(patient_status == 0)
-	{
-		insert_helper(hash, key, 0, (uint32_t) allele_type);
-	}
-	else
-	{
-		insert_helper(hash, key, (uint32_t) allele_type, 0);
-	}
-}
-
-int32_t lookup_index(uint32_t key)
-{
-	//uint32_t hash = key % snp_table->capacity;
-	uint32_t hash = key & ((snp_table->capacity) - 1);
-	uint32_t pos = hash;
-	uint32_t dist = 0;
-	for(;;)
-	{
-		//uint32_t curr_hash = snp_table->buffer[pos].key % snp_table->capacity;
-		uint32_t curr_hash = snp_table->buffer[pos].key & ((snp_table->capacity) - 1);
-		if(curr_hash == 0)
-		{
-			return -1;
-		}
-		else if(dist > probe_distance(snp_table->buffer[pos].key, pos))
-		{
-			return -1;
-		}
-		else if(curr_hash == hash && snp_table->buffer[pos].key == key)
-		{
-			return pos;
-		}
-
-		pos = pos + 1;
-		dist = dist + 1;
-	}
-}
-
-int32_t find(uint32_t key)
-{
-	return lookup_index(key);
-}
-
+/***** BEGIN: Enclave Robin-Hood Hash Table Public Interface *****/
 void enclave_init_rhht()
 {
-	allocate_table((uint32_t) RHHT_INIT_CAPACITY);
+	allocate_table();
 }
 
 void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len, uint32_t type)// uint32_t chunk_num)
@@ -204,27 +37,8 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
     size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
 
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = plaintext_len / 4;
-
-	// Process data
-	/*
-	size_t i;
-	for(i = 2; i < num_elems; i++)
-	{
-		uint32_t elem_id = ((uint32_t*) plaintext) [i];
-
-		uint32_t index = find(elem_id);
-
-		if(index != -1)
-		{
-			snp_table->buffer[index].case_count = snp_table->buffer[index].case_count + 1;
-		}
-		else
-		{
-			insert(elem_id, 1, 1);
-		}
-	}
-	*/
 
 	size_t i;
 	uint32_t het_start_idx = ((uint32_t*) plaintext) [1];
@@ -239,11 +53,11 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 		{
 			if(type == 1)
 			{
-				snp_table->buffer[index].case_count = snp_table->buffer[index].case_count + 2;
+				rhht_snp_table->buffer[index].case_count = rhht_snp_table->buffer[index].case_count + 2;
 			}
 			else
 			{
-				snp_table->buffer[index].control_count = snp_table->buffer[index].control_count + 2;
+				rhht_snp_table->buffer[index].control_count = rhht_snp_table->buffer[index].control_count + 2;
 			}
 		}
 		else
@@ -270,11 +84,11 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 		{
 			if(type == 1)
 			{
-				snp_table->buffer[index].case_count = snp_table->buffer[index].case_count + 1;
+				rhht_snp_table->buffer[index].case_count = rhht_snp_table->buffer[index].case_count + 1;
 			}
 			else
 			{
-				snp_table->buffer[index].control_count = snp_table->buffer[index].control_count + 1;
+				rhht_snp_table->buffer[index].control_count = rhht_snp_table->buffer[index].control_count + 1;
 			}
 		}
 		else
@@ -293,7 +107,7 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 	// We've processed the data, now clear it
 	delete[] plaintext;
 }
-/*************** END: Robin Hood Hash Table ***************/
+/***** END: Enclave Robin-Hood Hash Table Public Interface *****/
 
 /*************** BEGIN: Chi-Squared Test Functions **************/
 
@@ -410,19 +224,19 @@ void init_chi_sq(uint16_t case_total, uint16_t control_total)
 	float top_k_chi_sq[10];
 	uint8_t num_used = 0;
 	float chi_sq_val;
-	for(uint32_t i = 0; i < snp_table->capacity; i++)
+	for(uint32_t i = 0; i < rhht_snp_table->capacity; i++)
 	{
-		if(snp_table->buffer[i].key != 0)
+		if(rhht_snp_table->buffer[i].key != 0)
 		{
 			/* Calculate the chi squared value */
-			chi_sq_val = chi_sq(snp_table->buffer[i].case_count, snp_table->buffer[i].control_count, case_total, control_total);
+			chi_sq_val = chi_sq(rhht_snp_table->buffer[i].case_count, rhht_snp_table->buffer[i].control_count, case_total, control_total);
 			//double pval = pochisq((double) chi_sq_val);
 			//mysgx_printf("%d\t%f\t%.12f\n", snp_table->buffer[i].key, chi_sq_val, pval);
 
 			/* If the top-k array is not full, add current snp without any checks */
 			if(num_used < 10)
 			{
-				top_k_ids[num_used] = snp_table->buffer[i].key;
+				top_k_ids[num_used] = rhht_snp_table->buffer[i].key;
 				top_k_chi_sq[num_used] = chi_sq_val;
 				num_used = num_used + 1;
 			}
@@ -441,7 +255,7 @@ void init_chi_sq(uint16_t case_total, uint16_t control_total)
 				/* If the chi squared value of the current element is greater than that of index min, replace */
 				if(chi_sq_val > top_k_chi_sq[index_min])
 				{
-					top_k_ids[index_min] = snp_table->buffer[i].key;
+					top_k_ids[index_min] = rhht_snp_table->buffer[i].key;
 					top_k_chi_sq[index_min] = chi_sq_val;
 				}
 			}
