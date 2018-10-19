@@ -63,6 +63,10 @@ enclave
 		// Chi-Squared Test public ECALL interface
 		public void init_chi_sq(uint16_t case_count, uint16_t control_count);
 		public void init_chi_sq_cmtf(uint16_t case_total, uint16_t control_total);
+
+		// Count-Min-Sketch public ECALL interface
+		public void enclave_init_cms();
+		public void enclave_decrypt_process_cms(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 	};
     
 	untrusted

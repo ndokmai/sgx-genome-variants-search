@@ -6,9 +6,13 @@
 #include "config.h"
 #include "Enclave_t.h"
 #include "enclave_crypto.h"
+#include "enclave_cms.h"
 #include "enclave_rhht.h"
 #include "enclave_cmtf.h"
 #include "math.h"
+
+#define ALLELE_HETEROZYGOUS	1
+#define	ALLELE_HOMOZYGOUS	0
 
 #define	ENC_OUTBUF_LEN	256
 #define ENC_RESBUF_LEN	10
@@ -16,9 +20,69 @@
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
+#define CMS_WIDTH	(1 << 20)
+#define	CMS_DEPTH	5
+
 // Global Enclave Buffers
 uint32_t enclave_output_buffer[ENC_OUTBUF_LEN];
 uint32_t res_buf[ENC_RESBUF_LEN];
+
+/***** BEGIN: Enclave Count-Min-Sketch Public Interface *****/
+void enclave_init_cms()
+{
+	cms_init(CMS_WIDTH, CMS_DEPTH);
+}
+
+void enclave_decrypt_process_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+    uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+    enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	// Get the meta information first
+	uint32_t patient_status = ((uint32_t*) plaintext) [0];
+	uint32_t num_het_start = ((uint32_t*) plaintext) [1];
+
+	// Sign is +1 for case and -1 for control
+	int16_t sign = 1;
+	if(patient_status == 0)
+	{
+		sign = -1;
+	}
+
+	// Update the CMS for every element
+	size_t i;
+	uint64_t rs_id_uint;
+	for(i = 2; i < num_het_start + 2; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
+		cms_update_var(rs_id_uint, ALLELE_HOMOZYGOUS * sign);
+
+	}
+
+	for(i = num_het_start + 2; i < num_elems; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
+		cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
+
+	}
+
+	// We've processed the data, now clear it
+	delete[] plaintext;
+}
+/***** END: Enclave Count-Min-Sketch Public Interface *****/
 
 /***** BEGIN: Enclave Robin-Hood Hash Table Public Interface *****/
 void enclave_init_rhht()

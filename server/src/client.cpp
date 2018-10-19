@@ -392,6 +392,100 @@ void app_cmtf(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "time: %lf\n", duration);
 }
 
+void app_cms(MsgIO* msgio, config_t& config)
+{
+	// Get the Enclave ID from the configuration
+	auto& eid = config.eid;
+
+	// Get the Remote Attestation context from the configuration
+	auto& ra_ctx = config.ra_ctx;
+
+	// Start timer
+	std::clock_t start;
+	double duration;
+	start = std::clock();
+
+	// Make an ECALL to initialize the Enclave CMS structure
+	enclave_init_cms(eid);
+
+	// Set the chunk size for receiving large amounts of data
+	uint32_t chunk_size = 1000000;
+
+	// Set app specific variables
+	uint32_t case_count = 2000;
+	uint32_t control_count = 2000;
+	uint32_t num_case_files = case_count / 2;
+	uint32_t num_control_files = control_count / 2;
+	uint32_t num_files = num_case_files + num_control_files;
+
+	size_t i;
+	for(i = 0; i < num_files; i++)
+	{
+		//uint32_t chunk_num = 0;
+
+		// First, receive the total number of elements to be received
+		uint8_t* num_elems_buf;
+		size_t len_num_elems;
+		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
+		//fprintf(stderr, "num_elems: %llu\n", (unsigned long long) num_elems);
+
+		// Now, receive and process next data chunk until all data is processed
+		//fprintf(stderr, "Receiving data (encrypted) ...\n");
+		uint32_t num_elems_rem = num_elems;
+		uint32_t num_elems_rcvd = 0;
+		while(num_elems_rcvd != num_elems)
+		{
+			size_t to_read_elems = 0;
+			if(num_elems_rem < chunk_size)
+			{
+				to_read_elems = num_elems_rem;
+			}
+			else
+			{
+				to_read_elems = chunk_size;
+			}
+		
+			// Receive data (encrypted)
+			uint8_t* ciphertext;
+			size_t ciphertext_len;
+			msgio->read_bin(&ciphertext, &ciphertext_len);
+
+			// Make an ECALL to decrypt the data and process it inside the Enclave
+			//enclave_decrypt_process_cms(eid, ra_ctx, ciphertext, ciphertext_len, 1, chunk_num);
+			enclave_decrypt_process_cms(eid, ra_ctx, ciphertext, ciphertext_len);
+			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+			num_elems_rem = num_elems_rem - to_read_elems;
+
+			// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+			delete[] ciphertext;
+
+			//chunk_num = chunk_num + 1;
+		}
+	}
+
+	/*
+	// Make an ECALL to perform the chi-squared test
+	init_chi_sq(eid, case_count, control_count);
+	// Make an ECALL to receive the result
+	uint32_t my_res[10];
+	enclave_get_res_buf(eid, my_res);
+	for(int i = 0; i < 10; i++)
+	{
+		fprintf(stderr, "%lu\n", (unsigned long) my_res[i]);
+	}
+	//uint64_t result = 0;
+	//enclave_get_result_rhht(eid, &result);
+	*/
+
+	// Stop timer
+	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
+
+	// Report results
+	//fprintf(stderr, "result: %lu\n", (unsigned long) result);
+	fprintf(stderr, "time: %lf\n", duration);
+}
+
 int main(int argc, char** argv)
 {
 	config_t config;
@@ -399,7 +493,8 @@ int main(int argc, char** argv)
 	parse(argv[0], argv[1], config);
 	if(!remote_attestation(config, &msgio))
 	{
-		app_cmtf(msgio, config);
+		//app_cmtf(msgio, config);
+		app_cms(msgio, config);
 		finalize(msgio, config);
 	}
 }
