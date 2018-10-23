@@ -27,7 +27,7 @@
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
 #define CMS_WIDTH	(1 << 19)
-#define	CMS_DEPTH	12
+#define	CMS_DEPTH	3
 
 #define	CSK_WIDTH	(1 << 23)
 #define	CSK_DEPTH	4
@@ -869,6 +869,14 @@ void enclave_get_result(uint64_t* result)
 void enclave_get_res_buf(uint32_t* res)
 {
 	memcpy(res, &res_buf, 10 * sizeof(uint32_t));
+}
+
+void enclave_get_res_cms(uint32_t* res)
+{
+	for(size_t i = 0; i < mh->curr_heap_size; i++)
+	{
+		res[i] = mh->mh_array[i].key;
+	}
 }
 
 /*void enclave_out_function(char* buf, size_t len)

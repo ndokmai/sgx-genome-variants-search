@@ -61,6 +61,14 @@ struct mh_node get_parent(uint32_t i)
 void mh_insert(uint32_t id, uint16_t abs_diff)
 {
 	// TODO: If the element already exists, update case/control counts and return
+	for(size_t i = 0; i < mh->curr_heap_size; i++)
+	{
+		if(mh->mh_array[i].key == id)
+		{
+			// TODO: update case/control counts
+			return;
+		}
+	}
 
 	// Element is not in heap, if heap is not full insert
 	// If the heap is full, insert only if the abs_diff of root is smaller than current

@@ -492,10 +492,13 @@ void app_cms(MsgIO* msgio, config_t& config)
 		}
 	}
 
+	// Initialize the min-heap within the enclave
+	enclave_init_mh(eid);
+
 	// Second Pass: Query the CMS structure
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %d ...\n", i);
+		//fprintf(stderr, "Processing file: %d ...\n", i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -552,7 +555,15 @@ void app_cms(MsgIO* msgio, config_t& config)
 
 	// Report results
 	//fprintf(stderr, "result: %lu\n", (unsigned long) result);
-	fprintf(stderr, "time: %lf\n", duration);
+	//fprintf(stderr, "time: %lf\n", duration);
+
+	// Make a final ECALL to receive the result
+	uint32_t my_res[1024];
+	enclave_get_res_cms(eid, my_res);
+	for(size_t i = 0; i < 1024; i++)
+	{
+		fprintf(stdout, "rs%lu\n", (unsigned long) my_res[i]);
+	}
 }
 
 int main(int argc, char** argv)
