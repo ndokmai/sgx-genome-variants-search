@@ -115,7 +115,7 @@ void app_test(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "time: %lf\n", duration);
 }
 
-void app(MsgIO* msgio, config_t& config)
+void app_rhht(MsgIO* msgio, config_t& config)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -139,22 +139,20 @@ void app(MsgIO* msgio, config_t& config)
 	uint32_t control_count = 2000;
 	uint32_t num_case_files = case_count / 2;
 	uint32_t num_control_files = control_count / 2;
+	uint32_t num_files = num_case_files + num_control_files;
+
 	size_t i;
-
-	for(i = 0; i < num_case_files; i++)
+	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing case file: %d ...\n", i);
-		//uint32_t chunk_num = 0;
+		fprintf(stderr, "Processing file: %d ...\n", i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
 		msgio->read_bin(&num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
-		//fprintf(stderr, "num_elems: %llu\n", (unsigned long long) num_elems);
 
 		// Now, receive and process next data chunk until all data is processed
-		//fprintf(stderr, "Receiving data (encrypted) ...\n");
 		uint32_t num_elems_rem = num_elems;
 		uint32_t num_elems_rcvd = 0;
 		while(num_elems_rcvd != num_elems)
@@ -175,66 +173,18 @@ void app(MsgIO* msgio, config_t& config)
 			msgio->read_bin(&ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
-			//enclave_decrypt_process_rhht(eid, ra_ctx, ciphertext, ciphertext_len, 1, chunk_num);
-			enclave_decrypt_process_rhht(eid, ra_ctx, ciphertext, ciphertext_len, 1);
+			enclave_decrypt_process_rhht(eid, ra_ctx, ciphertext, ciphertext_len);
 			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
 			num_elems_rem = num_elems_rem - to_read_elems;
 
 			// We've processed the secret data, now either clean it up or use data sealing for a second pass later
 			delete[] ciphertext;
-
-			//chunk_num = chunk_num + 1;
-		}
-	}
-
-	for(i = 0; i < num_control_files; i++)
-	{
-		fprintf(stderr, "Processing control file: %d ...\n", i);
-		//uint32_t chunk_num = 0;
-
-		// First, receive the total number of elements to be received
-		uint8_t* num_elems_buf;
-		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
-		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
-		//fprintf(stderr, "num_elems: %llu\n", (unsigned long long) num_elems);
-
-		// Now, receive and process next data chunk until all data is processed
-		//fprintf(stderr, "Receiving data (encrypted) ...\n");
-		uint32_t num_elems_rem = num_elems;
-		uint32_t num_elems_rcvd = 0;
-		while(num_elems_rcvd != num_elems)
-		{
-			size_t to_read_elems = 0;
-			if(num_elems_rem < chunk_size)
-			{
-				to_read_elems = num_elems_rem;
-			}
-			else
-			{
-				to_read_elems = chunk_size;
-			}
-		
-			// Receive data (encrypted)
-			uint8_t* ciphertext;
-			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
-
-			// Make an ECALL to decrypt the data and process it inside the Enclave
-			//enclave_decrypt_process_rhht(eid, ra_ctx, ciphertext, ciphertext_len, 0, chunk_num);
-			enclave_decrypt_process_rhht(eid, ra_ctx, ciphertext, ciphertext_len, 0);
-			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
-			num_elems_rem = num_elems_rem - to_read_elems;
-
-			// We've processed the secret data, now either clean it up or use data sealing for a second pass later
-			delete[] ciphertext;
-
-			//chunk_num = chunk_num + 1;
 		}
 	}
 
 	// Make an ECALL to perform the chi-squared test
 	init_chi_sq(eid, case_count, control_count);
+
 	// Make an ECALL to receive the result
 	uint32_t my_res[10];
 	enclave_get_res_buf(eid, my_res);
@@ -242,14 +192,11 @@ void app(MsgIO* msgio, config_t& config)
 	{
 		fprintf(stderr, "%lu\n", (unsigned long) my_res[i]);
 	}
-	//uint64_t result = 0;
-	//enclave_get_result_rhht(eid, &result);
 
 	// Stop timer
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
 
 	// Report results
-	//fprintf(stderr, "result: %lu\n", (unsigned long) result);
 	fprintf(stderr, "time: %lf\n", duration);
 }
 
@@ -493,8 +440,9 @@ int main(int argc, char** argv)
 	parse(argv[0], argv[1], config);
 	if(!remote_attestation(config, &msgio))
 	{
+		app_rhht(msgio, config);
 		//app_cmtf(msgio, config);
-		app_cms(msgio, config);
+		//app_cms(msgio, config);
 		finalize(msgio, config);
 	}
 }

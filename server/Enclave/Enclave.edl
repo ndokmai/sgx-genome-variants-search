@@ -49,12 +49,9 @@ enclave
 
 		// Robin-Hood-Hash-Table public ECALL interface
 		public void enclave_init_rhht();
-
 		public void enclave_decrypt_process_rhht(sgx_ra_context_t ctx,
 													[user_check] uint8_t* ciphertext,
-													size_t ciphertext_len,
-													uint32_t type);
-//													uint32_t chunk_num);
+													size_t ciphertext_len);
 
 		// Chained-Move-to-Front Hash Table public ECALL interface
 		public void enclave_init_cmtf();

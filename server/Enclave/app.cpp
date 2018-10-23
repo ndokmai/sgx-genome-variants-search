@@ -96,7 +96,7 @@ void enclave_init_rhht()
 	allocate_table(RHHT_INIT_CAPACITY);
 }
 
-void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len, uint32_t type)// uint32_t chunk_num)
+void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
     uint8_t sk[16];
@@ -114,8 +114,11 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = plaintext_len / 4;
 
-	size_t i;
+	// Get the meta-information first
+	uint32_t patient_status = ((uint32_t*) plaintext) [0];
 	uint32_t het_start_idx = ((uint32_t*) plaintext) [1];
+
+	size_t i;
 	for(i = 2; i < het_start_idx + 2; i++)
 	{
 		uint32_t elem_id = ((uint32_t*) plaintext) [i];
@@ -125,7 +128,7 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 		// If found, update entry based on allele type
 		if(index != -1)
 		{
-			if(type == 1)
+			if(patient_status == 1)
 			{
 				rhht_snp_table->buffer[index].case_count = rhht_snp_table->buffer[index].case_count + 2;
 			}
@@ -136,7 +139,7 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 		}
 		else
 		{
-			if(type == 1)
+			if(patient_status == 1)
 			{
 				insert(elem_id, 2, 1);
 			}
@@ -156,7 +159,7 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 		// If found, update entry based on allele type
 		if(index != -1)
 		{
-			if(type == 1)
+			if(patient_status == 1)
 			{
 				rhht_snp_table->buffer[index].case_count = rhht_snp_table->buffer[index].case_count + 1;
 			}
@@ -167,7 +170,7 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 		}
 		else
 		{
-			if(type == 1)
+			if(patient_status == 1)
 			{
 				insert(elem_id, 1, 1);
 			}
