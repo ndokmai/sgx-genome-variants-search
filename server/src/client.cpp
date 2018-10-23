@@ -453,17 +453,15 @@ void app_cms(MsgIO* msgio, config_t& config)
 	size_t i;
 	for(i = 0; i < num_files; i++)
 	{
-		//uint32_t chunk_num = 0;
+		fprintf(stderr, "Processing file: %d ...\n", i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
 		msgio->read_bin(&num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
-		//fprintf(stderr, "num_elems: %llu\n", (unsigned long long) num_elems);
 
 		// Now, receive and process next data chunk until all data is processed
-		//fprintf(stderr, "Receiving data (encrypted) ...\n");
 		uint32_t num_elems_rem = num_elems;
 		uint32_t num_elems_rcvd = 0;
 		while(num_elems_rcvd != num_elems)
@@ -484,15 +482,12 @@ void app_cms(MsgIO* msgio, config_t& config)
 			msgio->read_bin(&ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
-			//enclave_decrypt_process_cms(eid, ra_ctx, ciphertext, ciphertext_len, 1, chunk_num);
-			enclave_decrypt_process_cms(eid, ra_ctx, ciphertext, ciphertext_len);
+			enclave_decrypt_update_cms(eid, ra_ctx, ciphertext, ciphertext_len);
 			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
 			num_elems_rem = num_elems_rem - to_read_elems;
 
 			// We've processed the secret data, now either clean it up or use data sealing for a second pass later
 			delete[] ciphertext;
-
-			//chunk_num = chunk_num + 1;
 		}
 	}
 
@@ -525,10 +520,10 @@ int main(int argc, char** argv)
 	parse(argv[0], argv[1], config);
 	if(!remote_attestation(config, &msgio))
 	{
-		app_oa(msgio,config);
+		//app_oa(msgio,config);
 		//app_rhht(msgio, config);
 		//app_cmtf(msgio, config);
-		//app_cms(msgio, config);
+		app_cms(msgio, config);
 		finalize(msgio, config);
 	}
 }

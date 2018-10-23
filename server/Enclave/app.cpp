@@ -23,8 +23,8 @@
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
-#define CMS_WIDTH	(1 << 23)
-#define	CMS_DEPTH	4
+#define CMS_WIDTH	(1 << 20)
+#define	CMS_DEPTH	5
 
 #define	CSK_WIDTH	(1 << 23)
 #define	CSK_DEPTH	4
@@ -39,7 +39,7 @@ void enclave_init_cms()
 	cms_init(CMS_WIDTH, CMS_DEPTH);
 }
 
-void enclave_decrypt_process_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
     uint8_t sk[16];
