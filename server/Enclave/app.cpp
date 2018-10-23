@@ -90,6 +90,102 @@ void enclave_decrypt_process_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 }
 /***** END: Enclave Count-Min-Sketch Public Interface *****/
 
+/***** BEGIN: Enclave Open-Addressing Hash Table Public Interface *****/
+void enclave_init_oa()
+{
+	oa_allocate_table(OA_INIT_CAPACITY);
+}
+
+void enclave_decrypt_process_oa(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+    uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+    enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	// Get the meta-information first
+	uint32_t patient_status = ((uint32_t*) plaintext) [0];
+	uint32_t het_start_idx = ((uint32_t*) plaintext) [1];
+
+	size_t i;
+	for(i = 2; i < het_start_idx + 2; i++)
+	{
+		uint32_t elem_id = ((uint32_t*) plaintext) [i];
+
+		int32_t index = oa_find(elem_id);
+
+		// If found, update entry based on allele type
+		if(index != -1)
+		{
+			if(patient_status == 1)
+			{
+				oaht->buffer[index].case_count = oaht->buffer[index].case_count + 2;
+			}
+			else
+			{
+				oaht->buffer[index].control_count = oaht->buffer[index].control_count + 2;
+			}
+		}
+		else
+		{
+			if(patient_status == 1)
+			{
+				oa_insert(elem_id, 2, 1);
+			}
+			else
+			{
+				oa_insert(elem_id, 2, 0);
+			}
+		}
+	}
+
+	for(i = het_start_idx + 2; i < num_elems; i++)
+	{
+		uint32_t elem_id = ((uint32_t*) plaintext) [i];
+
+		int32_t index = oa_find(elem_id);
+
+		// If found, update entry based on allele type
+		if(index != -1)
+		{
+			if(patient_status == 1)
+			{
+				oaht->buffer[index].case_count = oaht->buffer[index].case_count + 1;
+			}
+			else
+			{
+				oaht->buffer[index].control_count = oaht->buffer[index].control_count + 1;
+			}
+		}
+		else
+		{
+			if(patient_status == 1)
+			{
+				oa_insert(elem_id, 1, 1);
+			}
+			else
+			{
+				oa_insert(elem_id, 1, 0);
+			}
+		}
+	}
+
+	// We've processed the data, now clear it
+	delete[] plaintext;
+}
+/***** END: Enclave Open-Addressing Hash Table Public Interface *****/
+
 /***** BEGIN: Enclave Robin-Hood Hash Table Public Interface *****/
 void enclave_init_rhht()
 {
@@ -498,7 +594,7 @@ float chi_sq(uint16_t case_min, uint16_t control_min, uint16_t case_total, uint1
 	return chi_sq_val;
 }
 
-void init_chi_sq(uint16_t case_total, uint16_t control_total)
+void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 {
 	uint32_t top_k_ids[10];
 	float top_k_chi_sq[10];
@@ -554,7 +650,7 @@ void init_chi_sq(uint16_t case_total, uint16_t control_total)
 	//mysgx_printf("\n");
 }
 
-void init_chi_sq_cmtf(uint16_t case_total, uint16_t control_total)
+void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total)
 {
 	uint32_t top_k_ids[10];
 	float top_k_chi_sq[10];
@@ -613,6 +709,60 @@ void init_chi_sq_cmtf(uint16_t case_total, uint16_t control_total)
 	//mysgx_printf("\n");
 }
 
+void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
+{
+	uint32_t top_k_ids[10];
+	float top_k_chi_sq[10];
+	uint8_t num_used = 0;
+	float chi_sq_val;
+	for(uint32_t i = 0; i < oaht->capacity; i++)
+	{
+		if(oaht->buffer[i].key != 0)
+		{
+			/* Calculate the chi squared value */
+			chi_sq_val = chi_sq(oaht->buffer[i].case_count, oaht->buffer[i].control_count, case_total, control_total);
+			//double pval = pochisq((double) chi_sq_val);
+			//mysgx_printf("%d\t%f\t%.12f\n", snp_table->buffer[i].key, chi_sq_val, pval);
+
+			/* If the top-k array is not full, add current snp without any checks */
+			if(num_used < 10)
+			{
+				top_k_ids[num_used] = oaht->buffer[i].key;
+				top_k_chi_sq[num_used] = chi_sq_val;
+				num_used = num_used + 1;
+			}
+			else
+			{
+				/* Find the index of the minimum chi squared value in the top-k array */
+				uint8_t index_min = 0;
+				for(uint8_t j = 1; j < 10; j++)
+				{
+					if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
+					{
+						index_min = j;
+					}
+				}
+
+				/* If the chi squared value of the current element is greater than that of index min, replace */
+				if(chi_sq_val > top_k_chi_sq[index_min])
+				{
+					top_k_ids[index_min] = oaht->buffer[i].key;
+					top_k_chi_sq[index_min] = chi_sq_val;
+				}
+			}
+		}
+	}
+	//mysgx_printf("\nTop-10 SNPs with Chi-Squared Values and P-Values\n\n");
+	for(uint8_t i = 0; i < 10; i++)
+	{
+		double pval = pochisq((double) top_k_chi_sq[i]);
+		//mysgx_printf("rs%-30d\t%-30f\t%-30.8f\n", top_k_ids[i], top_k_chi_sq[i], pval);
+
+		// Proper output test
+		res_buf[i] = top_k_ids[i];
+	}
+	//mysgx_printf("\n");
+}
 /*************** END: Chi-Sqaured Test Functions ***************/
 
 /*************** BEGIN: Enclave Test Program Functions ***************/
