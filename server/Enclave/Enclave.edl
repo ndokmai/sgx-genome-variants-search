@@ -71,6 +71,7 @@ enclave
 		// Count-Min-Sketch public ECALL interface
 		public void enclave_init_cms();
 		public void enclave_decrypt_update_cms(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
+		public void enclave_decrypt_query_cms(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 	};
     
 	untrusted

@@ -3,7 +3,7 @@
 #include <sgx_trts.h>
 #include "enclave_cms.h"
 
-cms* m_cms = NULL;
+struct cms* m_cms = NULL;
 
 uint32_t my_sgx_rand()
 {

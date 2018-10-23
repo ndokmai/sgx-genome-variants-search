@@ -23,8 +23,8 @@
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
-#define CMS_WIDTH	(1 << 20)
-#define	CMS_DEPTH	5
+#define CMS_WIDTH	(1 << 19)
+#define	CMS_DEPTH	3
 
 #define	CSK_WIDTH	(1 << 23)
 #define	CSK_DEPTH	4
@@ -83,6 +83,68 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 		cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
 
+	}
+
+	// We've processed the data, now clear it
+	delete[] plaintext;
+}
+
+void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+    uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+    enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	// Get the meta information first
+	//uint32_t patient_status = ((uint32_t*) plaintext) [0];
+	//uint32_t num_het_start = ((uint32_t*) plaintext) [1];
+
+	// Sign is +1 for case and -1 for control
+	//int16_t sign = 1;
+	//if(patient_status == 0)
+	//{
+		//sign = -1;
+	//}
+
+	// Get the CMS depth
+	uint32_t cms_depth = m_cms->depth;
+	
+	// Query the CMS for every element
+	if(cms_depth % 2 == 0)
+	{
+		// CMS depth is even
+		size_t i;
+		int16_t est_diff;
+		uint64_t rs_id_uint;
+		for(i = 2; i < num_elems; i++)
+		{
+			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
+			est_diff = cms_query_median_even(rs_id_uint);
+		}
+	}
+	else
+	{
+		// CMS depth is odd
+		size_t i;
+		int16_t est_diff;
+		uint64_t rs_id_uint;
+		for(i = 2; i < num_elems; i++)
+		{
+			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
+			est_diff = cms_query_median_odd(rs_id_uint);
+		}
 	}
 
 	// We've processed the data, now clear it

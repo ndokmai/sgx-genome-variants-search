@@ -450,6 +450,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 	uint32_t num_control_files = control_count / 2;
 	uint32_t num_files = num_case_files + num_control_files;
 
+	// First Pass: Update the CMS structure
 	size_t i;
 	for(i = 0; i < num_files; i++)
 	{
@@ -483,6 +484,47 @@ void app_cms(MsgIO* msgio, config_t& config)
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 			enclave_decrypt_update_cms(eid, ra_ctx, ciphertext, ciphertext_len);
+			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+			num_elems_rem = num_elems_rem - to_read_elems;
+
+			// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+			delete[] ciphertext;
+		}
+	}
+
+	// Second Pass: Query the CMS structure
+	for(i = 0; i < num_files; i++)
+	{
+		fprintf(stderr, "Processing file: %d ...\n", i);
+
+		// First, receive the total number of elements to be received
+		uint8_t* num_elems_buf;
+		size_t len_num_elems;
+		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
+
+		// Now, receive and process next data chunk until all data is processed
+		uint32_t num_elems_rem = num_elems;
+		uint32_t num_elems_rcvd = 0;
+		while(num_elems_rcvd != num_elems)
+		{
+			size_t to_read_elems = 0;
+			if(num_elems_rem < chunk_size)
+			{
+				to_read_elems = num_elems_rem;
+			}
+			else
+			{
+				to_read_elems = chunk_size;
+			}
+		
+			// Receive data (encrypted)
+			uint8_t* ciphertext;
+			size_t ciphertext_len;
+			msgio->read_bin(&ciphertext, &ciphertext_len);
+
+			// Make an ECALL to decrypt the data and process it inside the Enclave
+			enclave_decrypt_query_cms(eid, ra_ctx, ciphertext, ciphertext_len);
 			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
 			num_elems_rem = num_elems_rem - to_read_elems;
 

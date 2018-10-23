@@ -6,6 +6,8 @@
 #define HASH_MAX	32765
 #define HASH_MIN	-32765
 
+extern struct cms* m_cms;
+
 typedef struct cms
 {
 	uint32_t width;				// Number of Buckets
