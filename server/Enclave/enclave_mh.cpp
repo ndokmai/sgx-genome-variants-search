@@ -58,7 +58,7 @@ struct mh_node get_parent(uint32_t i)
 	return mh->mh_array[idx_parent];
 }
 
-void insert(uint32_t id, float chi_sq_val)
+void insert(uint32_t id, uint16_t abs_diff)
 {
 	// If the heap is full, remove min element before inserting
 	if(mh->curr_heap_size == mh->max_heap_size)
@@ -68,9 +68,9 @@ void insert(uint32_t id, float chi_sq_val)
 
 	struct mh_node new_elem;
 	new_elem.key = id;
+	new_elem.abs_diff = abs_diff;
 	new_elem.case_count = 0;
 	new_elem.control_count = 0;
-	new_elem.chi_sq = chi_sq_val;
 
 	mh->curr_heap_size = mh->curr_heap_size + 1;
 	mh->mh_array[mh->curr_heap_size - 1] = new_elem;
@@ -85,7 +85,7 @@ void min_heapify(uint32_t idx)
 	if(idx != 0)
 	{
 		idx_parent = (idx - 1) / 2;
-		if(mh->mh_array[idx_parent].chi_sq > mh->mh_array[idx].chi_sq)
+		if(mh->mh_array[idx_parent].abs_diff > mh->mh_array[idx].abs_diff)
 		{
 			temp = mh->mh_array[idx_parent];
 			mh->mh_array[idx_parent] = mh->mh_array[idx];
@@ -117,7 +117,7 @@ void min_heapify_down(uint32_t idx)
 	}
 	else
 	{
-		if(mh->mh_array[idx_left].chi_sq <= mh->mh_array[idx_right].chi_sq)
+		if(mh->mh_array[idx_left].abs_diff <= mh->mh_array[idx_right].abs_diff)
 		{
 			idx_min = idx_left;
 		}
@@ -127,7 +127,7 @@ void min_heapify_down(uint32_t idx)
 		}
 	}
 
-	if(mh->mh_array[idx].chi_sq > mh->mh_array[idx_min].chi_sq)
+	if(mh->mh_array[idx].abs_diff > mh->mh_array[idx_min].abs_diff)
 	{
 		temp = mh->mh_array[idx_min];
 		mh->mh_array[idx_min] = mh->mh_array[idx];

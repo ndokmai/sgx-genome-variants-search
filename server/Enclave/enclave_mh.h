@@ -10,9 +10,9 @@ extern struct min_heap* mh;
 struct mh_node
 {
 	uint32_t key;
+	uint16_t abs_diff;
 	uint16_t case_count;
 	uint16_t control_count;
-	float chi_sq;
 };
 
 struct min_heap
@@ -26,10 +26,10 @@ void allocate_heap(uint32_t capacity);
 void free_heap();
 uint8_t is_empty();
 struct mh_node get_min();
-struct mh_node get_left();
-struct mh_node get_right();
-struct mh_node get_parent();
-void insert();
+struct mh_node get_left(uint32_t i);
+struct mh_node get_right(uint32_t i);
+struct mh_node get_parent(uint32_t i);
+void insert(uint32_t id, uint16_t abs_diff);
 void remove_min();
 void min_heapify(uint32_t idx);
 void min_heapify_down(uint32_t idx);
