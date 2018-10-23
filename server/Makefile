@@ -77,7 +77,7 @@ Crypto_Library_Name := sgx_tcrypto
 SGXSSL_Library_Name := sgx_tsgxssl
 OpenSSL_Crypto_Library_Name := sgx_tsgxssl_crypto 
 
-Enclave_C_Files := Enclave/Enclave.cpp Enclave/app.cpp Enclave/enclave_crypto.cpp Enclave/enclave_rhht.cpp Enclave/enclave_cmtf.cpp Enclave/enclave_cms.cpp Enclave/enclave_mh.cpp
+Enclave_C_Files := Enclave/Enclave.cpp Enclave/app.cpp Enclave/enclave_crypto.cpp Enclave/enclave_rhht.cpp Enclave/enclave_cmtf.cpp Enclave/enclave_cms.cpp Enclave/enclave_mh.cpp Enclave/enclave_oa.cpp Enclave/enclave_csk.cpp
 
 Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport -Iinclude -I$(SGX_SSL_Dir)/include
 Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths) -g
