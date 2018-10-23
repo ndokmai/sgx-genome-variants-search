@@ -29,7 +29,7 @@ struct mh_node get_min();
 struct mh_node get_left(uint32_t i);
 struct mh_node get_right(uint32_t i);
 struct mh_node get_parent(uint32_t i);
-void insert(uint32_t id, uint16_t abs_diff);
+void mh_insert(uint32_t id, uint16_t abs_diff);
 void remove_min();
 void min_heapify(uint32_t idx);
 void min_heapify_down(uint32_t idx);

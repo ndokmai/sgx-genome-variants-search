@@ -7,6 +7,7 @@
 #include "Enclave_t.h"
 #include "enclave_crypto.h"
 #include "math.h"
+#include "enclave_mh.h"
 #include "enclave_oa.h"
 #include "enclave_rhht.h"
 #include "enclave_cmtf.h"
@@ -16,6 +17,8 @@
 #define ALLELE_HETEROZYGOUS	1
 #define	ALLELE_HOMOZYGOUS	0
 
+#define	MH_INIT_CAPACITY	1024
+
 #define	ENC_OUTBUF_LEN	256
 #define ENC_RESBUF_LEN	10
 
@@ -24,7 +27,7 @@
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
 #define CMS_WIDTH	(1 << 19)
-#define	CMS_DEPTH	3
+#define	CMS_DEPTH	12
 
 #define	CSK_WIDTH	(1 << 23)
 #define	CSK_DEPTH	4
@@ -132,6 +135,15 @@ void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t
 		{
 			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 			est_diff = cms_query_median_even(rs_id_uint);
+			if(est_diff < 0)
+			{
+				est_diff = est_diff * -1;
+			}
+
+			// Try to insert the element into the min heap
+			// Updated if already in
+			// If the heap is full, inserted if its absolute difference is larger than the root
+			mh_insert(rs_id_uint, est_diff);
 		}
 	}
 	else
@@ -144,6 +156,15 @@ void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t
 		{
 			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 			est_diff = cms_query_median_odd(rs_id_uint);
+			if(est_diff < 0)
+			{
+				est_diff = est_diff * -1;
+			}
+
+			// Try to insert the element into the min heap
+			// Updated if already in
+			// If the heap is full, inserted if its absolute difference is larger than the root
+			mh_insert(rs_id_uint, est_diff);
 		}
 	}
 
@@ -826,6 +847,11 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 	//mysgx_printf("\n");
 }
 /*************** END: Chi-Sqaured Test Functions ***************/
+
+void enclave_init_mh()
+{
+	allocate_heap(MH_INIT_CAPACITY);
+}
 
 /*************** BEGIN: Enclave Test Program Functions ***************/
 uint64_t sum;
