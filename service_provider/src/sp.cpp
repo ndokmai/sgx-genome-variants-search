@@ -309,6 +309,8 @@ void app(MsgIO* msgio)
 
 void app_cms(MsgIO* msgio)
 {
+	int num_passes = 2;
+
 	// Hardcoded stuff that should be read from a config file really
 	int num_files = 2000;
 	char* file_dir = "/home/ckockan/test-data/chr1_all_ckz0/";
@@ -316,131 +318,135 @@ void app_cms(MsgIO* msgio)
 	// Number of elements to be sent in one round (in 32-bit uint elements, not bytes)
 	uint32_t chunk_size = 500000;
 
-	// Directory traversal variables
-	DIR* dir;
-	struct dirent* ent;
-	struct stat st;
-
-	// DEBUG
-	//fprintf(stderr, "Processing directory: %s\n", file_dir);
-
-	// 2D array to hold filenames within the directory
-	char filenames[num_files][MAX_FNAME];
-
-	int i = 0;
-	// Check if the input VCF directory exists
-	if((dir = opendir(file_dir)) != NULL)
+	for(size_t p = 0; p < num_passes; p++)
 	{
-		// Process each entry in the directory
-		while((ent = readdir(dir)) != NULL)
-		{
-			// Ignore current and parent dirs
-			if(ent->d_name[0] != '.' && i < num_files)
-			{			
-				// Prepare file path
-				strncpy(filenames[i], file_dir, strlen(file_dir) + 1);
-				strncat(filenames[i], "/", strlen("/"));
-				strncat(filenames[i], ent->d_name, strlen(ent->d_name));
+		// Directory traversal variables
+		DIR* dir;
+		struct dirent* ent;
+		struct stat st;
 
-				// Increment file index
-				i++;
+		// DEBUG
+		//fprintf(stderr, "Processing directory: %s\n", file_dir);
+
+		// 2D array to hold filenames within the directory
+		char filenames[num_files][MAX_FNAME];
+
+		int i = 0;
+		// Check if the input VCF directory exists
+		if((dir = opendir(file_dir)) != NULL)
+		{
+			// Process each entry in the directory
+			while((ent = readdir(dir)) != NULL)
+			{
+				// Ignore current and parent dirs
+				if(ent->d_name[0] != '.' && i < num_files)
+				{			
+					// Prepare file path
+					strncpy(filenames[i], file_dir, strlen(file_dir) + 1);
+					strncat(filenames[i], "/", strlen("/"));
+					strncat(filenames[i], ent->d_name, strlen(ent->d_name));
+
+					// Increment file index
+					i++;
+				}
 			}
+			closedir(dir);
 		}
-		closedir(dir);
-	}
-	else
-	{
-		fprintf(stderr, "Error opening input VCF directory\n");
-		return 1;
-	}
-	
-	// Make sure we've processed all files
-	assert(i == num_files);
-
-	// Randomly shuffle the file names
-	int index[num_files];
-	for(i = 0; i < num_files; i++)
-	{
-		index[i] = i;
-	}
-
-	int j;
-	for(i = num_files - 1; i > 0; i--)
-	{
-		j = rand() % (i + 1);
-		swap(&index[i], &index[j]);
-	}
-
-	// Now, read and process the files in random order
-	for(i = 0; i < num_files; i++)
-	{
-		if(stat(filenames[index[i]], &st) != -1)
+		else
 		{
-			// Open input binary file for reading
-			FILE* file = fopen(filenames[index[i]], "rb");
-			if(file == NULL)
+			fprintf(stderr, "Error opening input VCF directory\n");
+			return 1;
+		}
+	
+		// Make sure we've processed all files
+		assert(i == num_files);
+
+		// Randomly shuffle the file names
+		int index[num_files];
+		for(i = 0; i < num_files; i++)
+		{
+			index[i] = i;
+		}
+
+		int j;
+		for(i = num_files - 1; i > 0; i--)
+		{
+			j = rand() % (i + 1);
+			swap(&index[i], &index[j]);
+		}
+
+		// Now, read and process the files in random order
+		for(i = 0; i < num_files; i++)
+		{
+			if(stat(filenames[index[i]], &st) != -1)
 			{
-				fprintf(stderr, "Error opening file\n");
-			}
-			//fprintf(stderr, "Processing file: %s\n", filenames[index[i]]);
-
-			// Move the file pointer to the end of the file
-			fseek(file, 0, SEEK_END);
-
-			// Get the size of the file (in bytes)
-			uint32_t file_size = (uint32_t) ftell(file);
-			//fprintf(stderr, "\tSize of file: %d bytes.\n", file_size);
-
-			// Move the file pointer back to the beginning of the file
-			rewind(file);
-
-			// Each element in the file should be a 32-bit unsigned integer
-			// Therefore we can calculate the total number of elements to be sent for the file
-			uint32_t num_elems = file_size / sizeof(uint32_t);
-
-			// Allocate memory for the file contents
-			uint32_t* contents = (uint32_t*) malloc(sizeof(uint32_t) * num_elems);
-			if(contents == NULL)
-			{
-				fprintf(stderr, "Error: malloc() failed ...\n");
-			}
-			// Read the file contents
-			uint32_t elems_read = fread(contents, sizeof(uint32_t), num_elems, file);
-			if(elems_read != num_elems)
-			{
-				fprintf(stderr, "Error: elems_read (%d) != num_elems (%d) ...\n", elems_read, num_elems);
-			}
-
-			// First send the file size
-			auto num_elems_buf = new uint32_t[1];
-			num_elems_buf[0] = num_elems;
-			msgio->send_bin(num_elems_buf, sizeof(uint32_t));
-
-			// Now send the actual file contents
-			uint32_t num_elems_rem = num_elems;
-			uint32_t num_elems_sent = 0;
-			while(num_elems_sent != num_elems)
-			{
-				uint32_t to_send_elems = 0;
-				if(num_elems_rem < chunk_size)
+				// Open input binary file for reading
+				FILE* file = fopen(filenames[index[i]], "rb");
+				if(file == NULL)
 				{
-					to_send_elems = num_elems_rem;
+					fprintf(stderr, "Error opening file\n");
 				}
-				else
+				//fprintf(stderr, "Processing file: %s\n", filenames[index[i]]);
+
+				// Move the file pointer to the end of the file
+				fseek(file, 0, SEEK_END);
+
+				// Get the size of the file (in bytes)
+				uint32_t file_size = (uint32_t) ftell(file);
+				//fprintf(stderr, "\tSize of file: %d bytes.\n", file_size);
+
+				// Move the file pointer back to the beginning of the file
+				rewind(file);
+
+				// Each element in the file should be a 32-bit unsigned integer
+				// Therefore we can calculate the total number of elements to be sent for the file
+				uint32_t num_elems = file_size / sizeof(uint32_t);
+
+				// Allocate memory for the file contents
+				uint32_t* contents = (uint32_t*) malloc(sizeof(uint32_t) * num_elems);
+				if(contents == NULL)
 				{
-					to_send_elems = chunk_size;
+					fprintf(stderr, "Error: malloc() failed ...\n");
 				}
-				msgio->send_bin_encrypted(contents + num_elems_sent, to_send_elems * sizeof(uint32_t));
-				num_elems_sent = num_elems_sent + to_send_elems;
-				num_elems_rem = num_elems_rem - to_send_elems;
+
+				// Read the file contents
+				uint32_t elems_read = fread(contents, sizeof(uint32_t), num_elems, file);
+				if(elems_read != num_elems)
+				{
+					fprintf(stderr, "Error: elems_read (%d) != num_elems (%d) ...\n", elems_read, num_elems);
+				}
+
+				// First send the file size
+				auto num_elems_buf = new uint32_t[1];
+				num_elems_buf[0] = num_elems;
+				msgio->send_bin(num_elems_buf, sizeof(uint32_t));
+
+				// Now send the actual file contents
+				uint32_t num_elems_rem = num_elems;
+				uint32_t num_elems_sent = 0;
+				while(num_elems_sent != num_elems)
+				{
+					uint32_t to_send_elems = 0;
+					if(num_elems_rem < chunk_size)
+					{	
+						to_send_elems = num_elems_rem;
+					}
+					else
+					{
+						to_send_elems = chunk_size;
+					}
+					msgio->send_bin_encrypted(contents + num_elems_sent, to_send_elems * sizeof(uint32_t));
+					num_elems_sent = num_elems_sent + to_send_elems;
+					num_elems_rem = num_elems_rem - to_send_elems;
+				}
+
+				// Close file
+				fclose(file);
+
+				// Free memory
+				free(contents);
+				delete[] num_elems_buf;
 			}
-
-			// Close file
-			fclose(file);
-
-			// Free memory
-			free(contents);
-			delete[] num_elems_buf;
 		}
 	}
 
