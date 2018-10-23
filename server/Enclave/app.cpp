@@ -6,10 +6,12 @@
 #include "config.h"
 #include "Enclave_t.h"
 #include "enclave_crypto.h"
-#include "enclave_cms.h"
+#include "math.h"
+#include "enclave_oa.h"
 #include "enclave_rhht.h"
 #include "enclave_cmtf.h"
-#include "math.h"
+#include "enclave_cms.h"
+#include "enclave_csk.h"
 
 #define ALLELE_HETEROZYGOUS	1
 #define	ALLELE_HOMOZYGOUS	0
@@ -17,11 +19,15 @@
 #define	ENC_OUTBUF_LEN	256
 #define ENC_RESBUF_LEN	10
 
+#define OA_INIT_CAPACITY	(1 << 23)
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
-#define CMS_WIDTH	(1 << 20)
-#define	CMS_DEPTH	5
+#define CMS_WIDTH	(1 << 23)
+#define	CMS_DEPTH	4
+
+#define	CSK_WIDTH	(1 << 23)
+#define	CSK_DEPTH	4
 
 // Global Enclave Buffers
 uint32_t enclave_output_buffer[ENC_OUTBUF_LEN];
@@ -114,7 +120,7 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 	{
 		uint32_t elem_id = ((uint32_t*) plaintext) [i];
 
-		uint32_t index = find(elem_id);
+		int32_t index = find(elem_id);
 
 		// If found, update entry based on allele type
 		if(index != -1)
@@ -145,7 +151,7 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 	{
 		uint32_t elem_id = ((uint32_t*) plaintext) [i];
 
-		uint32_t index = find(elem_id);
+		int32_t index = find(elem_id);
 
 		// If found, update entry based on allele type
 		if(index != -1)
