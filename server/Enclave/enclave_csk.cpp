@@ -12,6 +12,11 @@ uint32_t my_sgx_rand_csk()
 	return rand_num & 0x7FFFFFFF;
 }
 
+int csk_cmpfunc_int16(const void* a, const void* b)
+{
+	return (*(int16_t*) a - *(int16_t*) b);
+}
+
 // Hash function: h(x) = (a * x + b) mod p, where p = 2 ^ 31 - 1
 uint32_t csk_cal_hash(uint64_t x, uint64_t a, uint64_t b)
 {
@@ -94,4 +99,77 @@ void csk_update_var(uint64_t item, int16_t count)
 		}
 		m_csk->sketch[i][pos] = m_csk->sketch[i][pos] + count_;
 	}
+}
+
+int16_t csk_query_median_odd(uint64_t item)
+{
+	int16_t* values;
+	int16_t median;
+	uint32_t hash;
+	uint32_t pos;
+	int32_t sign;
+
+	values = (int16_t*) malloc(m_csk->depth * sizeof(int16_t));
+
+	for(size_t i = 0; i < m_csk->depth; i++)
+	{
+		hash = csk_cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+		pos = hash & m_csk->width_minus_one;
+		hash = csk_cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
+		sign = ((hash & 0x1) == 0) ? -1 : 1;
+		values[i] = m_csk->sketch[i][pos] * sign;
+	}
+
+	// Sort values
+	qsort(values, m_csk->depth, sizeof(int16_t), csk_cmpfunc_int16);
+
+	// Get median of values
+	median = values[m_csk->depth / 2];
+
+	// Free memory
+	free(values);
+
+	return median;
+}
+
+int16_t csk_query_median_even(uint64_t item)
+{
+	int16_t* values;
+	int16_t median;
+	uint32_t hash;
+	uint32_t pos;
+	int32_t sign;
+
+	values = (int16_t*) malloc(m_csk->depth * sizeof(int16_t));
+
+	for(size_t i = 0; i < m_csk->depth; i++)
+	{
+		hash = csk_cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+		pos = hash & m_csk->width_minus_one;
+		hash = csk_cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
+		sign = ((hash & 0x1) == 0) ? -1 : 1;
+		values[i] = m_csk->sketch[i][pos] * sign;
+	}
+
+	// Sort values
+	qsort(values, m_csk->depth, sizeof(int16_t), csk_cmpfunc_int16);
+
+	// Get median of values
+	if(values[m_csk->depth / 2] < 0)
+	{
+		median = values[m_csk->depth / 2 - 1];
+	}
+	else if(values[m_csk->depth / 2 - 1] > 0)
+	{
+		median = values[m_csk->depth / 2];
+	}
+	else
+	{
+		median = (values[m_csk->depth / 2 - 1] + values[m_csk->depth / 2]) / 2;
+	}
+
+	// Free memory
+	free(values);
+
+	return median;
 }

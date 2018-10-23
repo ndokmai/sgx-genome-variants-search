@@ -26,5 +26,7 @@ uint32_t cal_hash(uint64_t, uint64_t, uint64_t);
 void cms_init(uint32_t, uint32_t);
 void cms_free();
 void cms_update_var(uint64_t, int16_t);
+int16_t cms_query_median_odd(uint64_t item);
+int16_t cms_query_median_even(uint64_t item);
 
 #endif

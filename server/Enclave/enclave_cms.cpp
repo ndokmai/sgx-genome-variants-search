@@ -12,6 +12,11 @@ uint32_t my_sgx_rand()
 	return rand_num & 0x7FFFFFFF;
 }
 
+int cmpfunc_int16(const void* a, const void* b)
+{
+	return (*(int16_t*) a - *(int16_t*) b);
+}
+
 // Hash function: h(x) = (a * x + b) mod p, where p = 2 ^ 31 - 1
 uint32_t cal_hash(uint64_t x, uint64_t a, uint64_t b)
 {
@@ -97,4 +102,79 @@ void cms_free()
 	{
 		free(m_cms->seeds);
 	}
+}
+
+int16_t cms_query_median_odd(uint64_t item)
+{
+	int16_t* values;
+	int16_t median;
+	uint32_t hash;
+	uint32_t pos;
+	uint16_t log_width = __builtin_ctz(m_cms->width);
+
+	values = (int16_t*) malloc(m_cms->depth * sizeof(int16_t));
+
+	for(size_t i = 0; i < m_cms->depth; i++)
+	{
+		hash = cal_hash(item, m_cms->seeds[i << 1], m_cms->seeds[(i << 1) + 1]);
+		pos = hash & m_cms->width_minus_one;
+		values[i] = m_cms->sketch[i][pos];
+
+		// Guarantee unbiased query
+		values[i] -= ((m_cms->st_length - values[i]) >> log_width);
+	}
+
+	// Sort values
+	qsort(values, m_cms->depth, sizeof(int16_t), cmpfunc_int16);
+
+	// Get median of values
+	median = values[m_cms->depth / 2];
+
+	// Free memory
+	free(values);
+
+	return median;
+}
+
+int16_t cms_query_median_even(uint64_t item)
+{
+	int16_t* values;
+	int16_t median;
+	uint32_t hash;
+	uint32_t pos;
+	uint16_t log_width = __builtin_ctz(m_cms->width);
+
+	values = (int16_t*) malloc(m_cms->depth * sizeof(int16_t));
+
+	for(size_t i = 0; i < m_cms->depth; i++)
+	{
+		hash = cal_hash(item, m_cms->seeds[i << 1], m_cms->seeds[(i << 1) + 1]);
+		pos = hash & m_cms->width_minus_one;
+		values[i] = m_cms->sketch[i][pos];
+
+		// Guarantee unbiased query
+		values[i] -= ((m_cms->st_length - values[i]) >> log_width);
+	}
+
+	// Sort values
+	qsort(values, m_cms->depth, sizeof(int16_t), cmpfunc_int16);
+
+	// Get median of values
+	if(values[m_cms->depth / 2] < 0)
+	{
+		median = values[m_cms->depth / 2 - 1];
+	}
+	else if(values[m_cms->depth / 2 - 1] > 0)
+	{
+		median = values[m_cms->depth / 2];
+	}
+	else
+	{
+		median = (values[m_cms->depth / 2 - 1] + values[m_cms->depth / 2]) / 2;
+	}
+
+	// Free memory
+	free(values);
+
+	return median;
 }

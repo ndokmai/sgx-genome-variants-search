@@ -25,5 +25,7 @@ uint32_t csk_cal_hash(uint64_t, uint64_t, uint64_t);
 void csk_init(uint32_t, uint32_t);
 void csk_free();
 void csk_update_var(uint64_t, int16_t);
+int16_t csk_query_median_odd(uint64_t item);
+int16_t csk_query_median_even(uint64_t item);
 
 #endif
