@@ -1002,6 +1002,14 @@ void enclave_get_res_cms(uint32_t* res)
 	}
 }
 
+void enclave_get_res_csk(uint32_t* res)
+{
+	for(size_t i = 0; i < mh->curr_heap_size; i++)
+	{
+		res[i] = mh->mh_array[i].key;
+	}
+}
+
 /*void enclave_out_function(char* buf, size_t len)
 {
 	if(len <= (size_t) MAX_BUF_LEN)
