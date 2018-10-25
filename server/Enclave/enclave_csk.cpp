@@ -3,7 +3,7 @@
 #include <sgx_trts.h>
 #include "enclave_csk.h"
 
-csk* m_csk = NULL;
+struct csk* m_csk = NULL;
 
 uint32_t my_sgx_rand_csk()
 {
