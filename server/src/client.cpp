@@ -454,7 +454,7 @@ void app_csk(MsgIO* msgio, config_t& config)
 	size_t i;
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %d ...\n", i);
+		fprintf(stderr, "First pass, processing file: %d ...\n", i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -498,7 +498,7 @@ void app_csk(MsgIO* msgio, config_t& config)
 	// Second Pass: Query the CSK structure
 	for(i = 0; i < num_files; i++)
 	{
-		//fprintf(stderr, "Processing file: %d ...\n", i);
+		fprintf(stderr, "Second pass, processing file: %d ...\n", i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -596,7 +596,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 	size_t i;
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %d ...\n", i);
+		fprintf(stderr, "First Pass, processing file: %d ...\n", i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -634,13 +634,15 @@ void app_cms(MsgIO* msgio, config_t& config)
 		}
 	}
 
+	/*
+
 	// Initialize the min-heap within the enclave
 	enclave_init_mh(eid);
 
 	// Second Pass: Query the CMS structure
 	for(i = 0; i < num_files; i++)
 	{
-		//fprintf(stderr, "Processing file: %d ...\n", i);
+		fprintf(stderr, "Second pass, processing file: %d ...\n", i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -677,35 +679,22 @@ void app_cms(MsgIO* msgio, config_t& config)
 			delete[] ciphertext;
 		}
 	}
-
-	/*
-	// Make an ECALL to perform the chi-squared test
-	init_chi_sq(eid, case_count, control_count);
-	// Make an ECALL to receive the result
-	uint32_t my_res[10];
-	enclave_get_res_buf(eid, my_res);
-	for(int i = 0; i < 10; i++)
-	{
-		fprintf(stderr, "%lu\n", (unsigned long) my_res[i]);
-	}
-	//uint64_t result = 0;
-	//enclave_get_result_rhht(eid, &result);
 	*/
 
 	// Stop timer
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
 
-	// Report results
-	//fprintf(stderr, "result: %lu\n", (unsigned long) result);
-	//fprintf(stderr, "time: %lf\n", duration);
+	// Report time
+	fprintf(stderr, "time: %lf\n", duration);
 
-	// Make a final ECALL to receive the result
-	uint32_t my_res[1024];
-	enclave_get_res_cms(eid, my_res);
-	for(size_t i = 0; i < 1024; i++)
-	{
-		fprintf(stdout, "rs%lu\n", (unsigned long) my_res[i]);
-	}
+	// Make a final ECALL to receive the results and report results
+	//
+	//uint32_t my_res[1024];
+	//enclave_get_res_cms(eid, my_res);
+	//for(size_t i = 0; i < 1024; i++)
+	//{
+		//fprintf(stdout, "rs%lu\n", (unsigned long) my_res[i]);
+	//}
 }
 
 int main(int argc, char** argv)
@@ -716,9 +705,9 @@ int main(int argc, char** argv)
 	if(!remote_attestation(config, &msgio))
 	{
 		//app_oa(msgio,config);
-		//app_rhht(msgio, config);
+		app_rhht(msgio, config);
 		//app_cmtf(msgio, config);
-		app_cms(msgio, config);
+		//app_cms(msgio, config);
 		finalize(msgio, config);
 	}
 }
