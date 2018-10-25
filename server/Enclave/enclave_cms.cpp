@@ -67,7 +67,8 @@ void cms_init(uint32_t width, uint32_t depth)
 void cms_update_var(uint64_t item, int16_t count)
 {
 	uint32_t hash;
-	uint32_t pos;
+//	uint32_t pos;
+	volatile uint32_t pos;
 	m_cms->st_length = m_cms->st_length + count;
 
 	size_t i;

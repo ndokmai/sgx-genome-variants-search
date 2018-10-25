@@ -634,8 +634,6 @@ void app_cms(MsgIO* msgio, config_t& config)
 		}
 	}
 
-	/*
-
 	// Initialize the min-heap within the enclave
 	enclave_init_mh(eid);
 
@@ -679,7 +677,6 @@ void app_cms(MsgIO* msgio, config_t& config)
 			delete[] ciphertext;
 		}
 	}
-	*/
 
 	// Stop timer
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
@@ -687,14 +684,41 @@ void app_cms(MsgIO* msgio, config_t& config)
 	// Report time
 	fprintf(stderr, "time: %lf\n", duration);
 
+	/*
+	FILE* outfile;
+	outfile = fopen("/home/ckockan/results/test.txt", "w");
+
+	uint32_t* my_res_ids;
+	int16_t* my_res_ests;
+	my_res_ids = (uint32_t*) malloc(sizeof(uint32_t) * 8000000);
+	my_res_ests = (int16_t*) malloc(sizeof(int16_t) * 8000000);
+	for(size_t i = 0; i < 8000000; i++)
+	{
+		my_res_ids[i] = 0;
+		my_res_ests[i] = 0;
+	}
+
+	enclave_get_res_cms_ids(eid, my_res_ids);
+	enclave_get_res_cms_ests(eid, my_res_ests);
+	for(size_t i = 0; i < 8000000; i++)
+	{
+		if(my_res_ids[i] == 0)
+		{
+			break;
+		}
+		fprintf(outfile, "rs%lu\t%d\n", (unsigned long) my_res_ids[i], my_res_ests[i]);
+	}
+
+	fclose(outfile);
+	*/
+
 	// Make a final ECALL to receive the results and report results
-	//
-	//uint32_t my_res[1024];
-	//enclave_get_res_cms(eid, my_res);
-	//for(size_t i = 0; i < 1024; i++)
-	//{
-		//fprintf(stdout, "rs%lu\n", (unsigned long) my_res[i]);
-	//}
+	uint32_t my_res[1024];
+	enclave_get_res_cms(eid, my_res);
+	for(size_t i = 0; i < 1024; i++)
+	{
+		fprintf(stdout, "rs%lu\n", (unsigned long) my_res[i]);
+	}
 }
 
 int main(int argc, char** argv)

@@ -15,10 +15,11 @@
 #include "enclave_csk.h"
 
 #define ALLELE_HETEROZYGOUS	1
-#define	ALLELE_HOMOZYGOUS	0
+#define	ALLELE_HOMOZYGOUS	2
 
 #define	MH_INIT_CAPACITY	1024
 
+#define	ENC_CMSBUF_LEN	(1 << 23)
 #define	ENC_OUTBUF_LEN	256
 #define ENC_RESBUF_LEN	10
 
@@ -26,19 +27,28 @@
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
-#define CMS_WIDTH	(1 << 23)
-#define	CMS_DEPTH	3
+#define CMS_WIDTH	(1 << 19)
+#define	CMS_DEPTH	13
 
 #define	CSK_WIDTH	(1 << 23)
-#define	CSK_DEPTH	3
+#define	CSK_DEPTH	5
 
 // Global Enclave Buffers
 uint32_t enclave_out_buf[ENC_OUTBUF_LEN];
 uint32_t enclave_res_buf[ENC_RESBUF_LEN];
+uint32_t* enclave_cms_id_buf;
+int16_t* enclave_cms_est_buf;
 
 /***** BEGIN: Enclave Count-Min-Sketch Public Interface *****/
 void enclave_init_cms()
 {
+//	enclave_cms_id_buf = (uint32_t*) malloc(sizeof(uint32_t) * 8000000);
+//	enclave_cms_est_buf = (int16_t*) malloc(sizeof(int16_t) * 8000000);
+//	for(size_t i = 0; i < 8000000; i++)
+//	{
+//		enclave_cms_id_buf[i] = 0;
+//		enclave_cms_est_buf[i] = 0;
+//	}
 	cms_init(CMS_WIDTH, CMS_DEPTH);
 }
 
@@ -78,14 +88,12 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 		cms_update_var(rs_id_uint, ALLELE_HOMOZYGOUS * sign);
-
 	}
 
 	for(i = num_het_start + 2; i < num_elems; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 		cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
-
 	}
 
 	// We've processed the data, now clear it
@@ -149,10 +157,26 @@ void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t
 		{
 			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 			est_diff = cms_query_median_odd(rs_id_uint);
+
 			if(est_diff < 0)
 			{
 				est_diff = est_diff * -1;
 			}
+
+			/*for(size_t j = 0; j < 8000000; j++)
+			{
+				if(enclave_cms_id_buf[j] == rs_id_uint)
+				{
+					break;
+				}
+
+				if(enclave_cms_id_buf[j] == 0)
+				{
+					enclave_cms_id_buf[j] = rs_id_uint;
+					enclave_cms_est_buf[j] = est_diff;
+					break;
+				}
+			}*/
 
 			// Try to insert the element into the min heap
 			// Updated if already in
@@ -1007,6 +1031,22 @@ void enclave_get_res_csk(uint32_t* res)
 	for(size_t i = 0; i < mh->curr_heap_size; i++)
 	{
 		res[i] = mh->mh_array[i].key;
+	}
+}
+
+void enclave_get_res_cms_ids(uint32_t* res)
+{
+	for(size_t i = 0; i < (1 << 23); i++)
+	{
+		res[i] = enclave_cms_id_buf[i];
+	}
+}
+
+void enclave_get_res_cms_ests(int16_t* res)
+{
+	for(size_t i = 0; i < (1 << 23); i++)
+	{
+		res[i] = enclave_cms_est_buf[i];
 	}
 }
 
