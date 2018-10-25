@@ -309,7 +309,7 @@ void app(MsgIO* msgio)
 
 void app_cms(MsgIO* msgio)
 {
-	int num_passes = 2;
+	int num_passes = 1;
 
 	// Hardcoded stuff that should be read from a config file really
 	int num_files = 2000;

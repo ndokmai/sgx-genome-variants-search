@@ -705,9 +705,9 @@ int main(int argc, char** argv)
 	if(!remote_attestation(config, &msgio))
 	{
 		//app_oa(msgio,config);
-		app_rhht(msgio, config);
+		//app_rhht(msgio, config);
 		//app_cmtf(msgio, config);
-		//app_cms(msgio, config);
+		app_cms(msgio, config);
 		finalize(msgio, config);
 	}
 }
