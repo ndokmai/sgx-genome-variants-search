@@ -31,13 +31,46 @@ void construct(uint32_t index, uint32_t key, uint16_t case_count, uint16_t contr
 	rhht_snp_table->buffer[index].control_count = control_count;
 }
 
-uint32_t probe_distance(uint32_t key, uint32_t slot_index)
+inline uint32_t probe_distance(uint32_t key, uint32_t slot_index)
 {
 	uint32_t hash = key & ((rhht_snp_table->capacity) - 1);
 	return (slot_index + rhht_snp_table->capacity - hash);
 }
 
-extern void insert_helper(uint32_t hash, uint32_t key, uint16_t case_count, uint16_t control_count);
+inline void insert_helper(uint32_t hash, uint32_t key, uint16_t case_count, uint16_t control_count)
+{
+	uint32_t pos = hash;
+	uint32_t dist = 0;
+	for(;;)
+	{
+		if((rhht_snp_table->buffer[pos].key & ((rhht_snp_table->capacity) - 1)) == 0)
+		{
+			construct(pos, key, case_count, control_count);
+			return;
+		}
+
+		uint32_t existing_elem_probe_dist = probe_distance(rhht_snp_table->buffer[pos].key, pos);
+		if(existing_elem_probe_dist < dist)
+		{
+			uint32_t temp_key = rhht_snp_table->buffer[pos].key;
+			uint16_t temp_case_count = rhht_snp_table->buffer[pos].case_count;
+			uint16_t temp_control_count = rhht_snp_table->buffer[pos].control_count;
+
+			rhht_snp_table->buffer[pos].key = key;
+			rhht_snp_table->buffer[pos].case_count = case_count;
+			rhht_snp_table->buffer[pos].control_count = control_count;
+
+			key = temp_key;
+			case_count = temp_case_count;
+			control_count = temp_control_count;
+
+			dist = existing_elem_probe_dist;
+		}
+
+		pos = pos + 1;
+		dist = dist + 1;
+	}
+}
 
 // Expand the hash table if the number of elements exceed the resize threshold
 void grow()
@@ -61,7 +94,24 @@ void grow()
 	free(old_elems);
 }
 
-extern  void insert(uint32_t key, uint8_t allele_type, uint8_t patient_status);
+void insert(uint32_t key, uint8_t allele_type, uint8_t patient_status)
+{
+	rhht_snp_table->num_elems = rhht_snp_table->num_elems + 1;
+	if(rhht_snp_table->num_elems >= rhht_snp_table->resize_threshold)
+	{
+		grow();
+	}
+
+	uint32_t hash = key & ((rhht_snp_table->capacity) - 1);
+	if(patient_status == 0)
+	{
+		insert_helper(hash, key, 0, (uint32_t) allele_type);
+	}
+	else
+	{
+		insert_helper(hash, key, (uint32_t) allele_type, 0);
+	}
+}
 
 int32_t lookup_index(uint32_t key)
 {
