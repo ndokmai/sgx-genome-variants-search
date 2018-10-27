@@ -3,7 +3,7 @@
 
 #include "inttypes.h"
 
-#define MAX_ALLOWED_SIZE	128000
+#define MAX_ALLOWED_SIZE	(1 << 17)
 
 extern struct min_heap* mh;
 

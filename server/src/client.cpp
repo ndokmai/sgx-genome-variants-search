@@ -850,12 +850,16 @@ void app_cms_2(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "Second Pass (CMS) took: %lf seconds\n", duration);
 
 	// Make a final ECALL to receive the results and report results
-	uint32_t my_res[1024];
+	uint32_t* my_res;
+	my_res = (uint32_t*) malloc(sizeof(uint32_t) * (1 << 17));
+
 	enclave_get_res_cms(eid, my_res);
-	for(size_t i = 0; i < 1024; i++)
+
+	for(size_t i = 0; i < (1 << 17); i++)
 	{
 		fprintf(stdout, "rs%lu\n", (unsigned long) my_res[i]);
 	}
+	free(my_res);
 }
 
 int main(int argc, char** argv)

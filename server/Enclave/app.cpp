@@ -17,9 +17,9 @@
 #define ALLELE_HETEROZYGOUS	1
 #define	ALLELE_HOMOZYGOUS	2
 
-#define	MH_INIT_CAPACITY	1024
+#define	MH_INIT_CAPACITY	(1 << 17)
 
-#define	ENC_CMSBUF_LEN	(1 << 23)
+#define	ENC_CMSBUF_LEN	(1 << 17)
 #define	ENC_OUTBUF_LEN	256
 #define ENC_RESBUF_LEN	10
 
@@ -42,13 +42,6 @@ int16_t* enclave_cms_est_buf;
 /***** BEGIN: Enclave Count-Min-Sketch Public Interface *****/
 void enclave_init_cms()
 {
-//	enclave_cms_id_buf = (uint32_t*) malloc(sizeof(uint32_t) * 8000000);
-//	enclave_cms_est_buf = (int16_t*) malloc(sizeof(int16_t) * 8000000);
-//	for(size_t i = 0; i < 8000000; i++)
-//	{
-//		enclave_cms_id_buf[i] = 0;
-//		enclave_cms_est_buf[i] = 0;
-//	}
 	cms_init(CMS_WIDTH, CMS_DEPTH);
 }
 
@@ -129,8 +122,7 @@ void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t
 		int16_t est_diff;
 		uint64_t rs_id_uint;
 
-		// Start from (index = 2) since we don't need the meta information for queries
-		for(i = 2; i < num_elems; i++)
+		for(i = 0; i < num_elems; i++)
 		{
 			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 			est_diff = cms_query_median_even(rs_id_uint);
@@ -140,7 +132,6 @@ void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t
 			}
 
 			// Try to insert the element into the min heap
-			// Updated if already in
 			// If the heap is full, inserted if its absolute difference is larger than the root
 			mh_insert(rs_id_uint, est_diff);
 		}
@@ -152,34 +143,16 @@ void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t
 		int16_t est_diff;
 		uint64_t rs_id_uint;
 
-		// Start from (index = 2) since we don't need the meta information for queries
-		for(i = 2; i < num_elems; i++)
+		for(i = 0; i < num_elems; i++)
 		{
 			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 			est_diff = cms_query_median_odd(rs_id_uint);
-
 			if(est_diff < 0)
 			{
 				est_diff = est_diff * -1;
 			}
 
-			/*for(size_t j = 0; j < 8000000; j++)
-			{
-				if(enclave_cms_id_buf[j] == rs_id_uint)
-				{
-					break;
-				}
-
-				if(enclave_cms_id_buf[j] == 0)
-				{
-					enclave_cms_id_buf[j] = rs_id_uint;
-					enclave_cms_est_buf[j] = est_diff;
-					break;
-				}
-			}*/
-
 			// Try to insert the element into the min heap
-			// Updated if already in
 			// If the heap is full, inserted if its absolute difference is larger than the root
 			mh_insert(rs_id_uint, est_diff);
 		}

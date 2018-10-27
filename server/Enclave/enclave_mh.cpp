@@ -61,6 +61,8 @@ struct mh_node get_parent(uint32_t i)
 void mh_insert(uint32_t id, uint16_t abs_diff)
 {
 	// TODO: If the element already exists, update case/control counts and return
+	// Disabled for the time being. We only need the top heap elements for the reporting accuracy
+	/*
 	for(size_t i = 0; i < mh->curr_heap_size; i++)
 	{
 		if(mh->mh_array[i].key == id)
@@ -69,20 +71,7 @@ void mh_insert(uint32_t id, uint16_t abs_diff)
 			return;
 		}
 	}
-
-	// Element is not in heap, if heap is not full insert
-	// If the heap is full, insert only if the abs_diff of root is smaller than current
-	if(mh->curr_heap_size == mh->max_heap_size)
-	{
-		if(mh->mh_array[0].abs_diff < abs_diff)
-		{
-			remove_min();
-		}
-		else
-		{
-			return;
-		}
-	}
+	*/
 
 	struct mh_node new_elem;
 	new_elem.key = id;
@@ -90,9 +79,23 @@ void mh_insert(uint32_t id, uint16_t abs_diff)
 	new_elem.case_count = 0; //TODO: initialize with appropriate counts
 	new_elem.control_count = 0; // TODO: initialize with approproiate counts
 
-	mh->curr_heap_size = mh->curr_heap_size + 1;
-	mh->mh_array[mh->curr_heap_size - 1] = new_elem;
-	min_heapify(mh->curr_heap_size - 1);
+	if(mh->curr_heap_size < mh->max_heap_size)
+	{
+		mh->curr_heap_size = mh->curr_heap_size + 1;
+		mh->mh_array[mh->curr_heap_size - 1] = new_elem;
+		min_heapify(mh->curr_heap_size - 1);
+	}
+	else
+	{
+		if(mh->mh_array[0].abs_diff >= abs_diff)
+		{
+			return;
+		}
+		remove_min();
+		mh->curr_heap_size = mh->curr_heap_size + 1;
+		mh->mh_array[mh->curr_heap_size - 1] = new_elem;
+		min_heapify(mh->curr_heap_size - 1);
+	}
 }
 
 void min_heapify(uint32_t idx)
