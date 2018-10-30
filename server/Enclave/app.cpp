@@ -244,8 +244,7 @@ void enclave_decrypt_query_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t
 		int16_t est_diff;
 		uint64_t rs_id_uint;
 
-		// Start from (index = 2) since we don't need the meta information for queries
-		for(i = 2; i < num_elems; i++)
+		for(i = 0; i < num_elems; i++)
 		{
 			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 			est_diff = csk_query_median_even(rs_id_uint);
@@ -267,8 +266,7 @@ void enclave_decrypt_query_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t
 		int16_t est_diff;
 		uint64_t rs_id_uint;
 
-		// Start from (index = 2) since we don't need the meta information for queries
-		for(i = 2; i < num_elems; i++)
+		for(i = 0; i < num_elems; i++)
 		{
 			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 			est_diff = csk_query_median_odd(rs_id_uint);
