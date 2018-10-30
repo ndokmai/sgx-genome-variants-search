@@ -11,33 +11,29 @@
 #include "enclave_oa.h"
 #include "enclave_rhht.h"
 #include "enclave_cmtf.h"
-#include "enclave_cms.h"
 #include "enclave_csk.h"
+#include "enclave_cms.h"
 
 #define ALLELE_HETEROZYGOUS	1
 #define	ALLELE_HOMOZYGOUS	2
 
 #define	MH_INIT_CAPACITY	(1 << 17)
 
-#define	ENC_CMSBUF_LEN	(1 << 17)
-#define	ENC_OUTBUF_LEN	256
-#define ENC_RESBUF_LEN	10
+#define	ENC_RES_BUF_LEN		(1 << 17)
 
 #define OA_INIT_CAPACITY	(1 << 23)
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
-#define CMS_WIDTH	(1 << 19)
-#define	CMS_DEPTH	13
+#define CMS_WIDTH			(1 << 19)
+#define	CMS_DEPTH			13
 
-#define	CSK_WIDTH	(1 << 23)
-#define	CSK_DEPTH	5
+#define	CSK_WIDTH			(1 << 19)
+#define	CSK_DEPTH			13
 
 // Global Enclave Buffers
-uint32_t enclave_out_buf[ENC_OUTBUF_LEN];
-uint32_t enclave_res_buf[ENC_RESBUF_LEN];
-uint32_t* enclave_cms_id_buf;
-int16_t* enclave_cms_est_buf;
+// TODO: Dynamically allocating and keeping track of this might be a good idea
+uint32_t enclave_res_buf[ENC_RES_BUF_LEN];
 
 /***** BEGIN: Enclave Count-Min-Sketch Public Interface *****/
 void enclave_init_cms()
@@ -688,7 +684,7 @@ void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 
 /***** END: Enclave Chained-Move-to-Front Hash Table Public Interface *****/
 
-/*************** BEGIN: Chi-Squared Test Functions **************/
+/***** BEGIN: Enclave Chi-Squared Test Functions *****/
 
 // poz(): probability of normal z value
 // This function was taken from an adaptation of: 
@@ -749,12 +745,11 @@ double pochisq(double x)
 
 float chi_sq(uint16_t case_min, uint16_t control_min, uint16_t case_total, uint16_t control_total)
 {
-	//mysgx_printf("%d\t%d\t%d\t%d\n", case_min, control_min, case_total, control_total);
 	uint16_t case_maj = case_total - case_min;
 	uint16_t control_maj = control_total - control_min;
 	uint16_t pop_total = case_total + control_total;
 
-	/* Compute observed frequencies */
+	// Compute the observed frequencies
 	float case_maj_f = (float) case_maj / pop_total;
 	float case_min_f = (float) case_min / pop_total;
 	float control_maj_f = (float) control_maj / pop_total;
@@ -764,9 +759,8 @@ float chi_sq(uint16_t case_min, uint16_t control_min, uint16_t case_total, uint1
 	obs_freq[1] = case_min_f;
 	obs_freq[2] = control_maj_f;
 	obs_freq[3] = control_min_f;
-	//mysgx_printf("%f\t%f\t%f\t%f\n", case_maj_f, case_min_f, control_maj_f, control_min_f);
 
-	/* Compute expected frequencies */
+	// Compute expected frequencies
 	float case_total_f = (float) case_total / pop_total;
 	float control_total_f = (float) control_total / pop_total;
 	float maj_total_f = case_maj_f + control_maj_f;
@@ -777,22 +771,20 @@ float chi_sq(uint16_t case_min, uint16_t control_min, uint16_t case_total, uint1
 	exp_freq[1] = case_total_f * min_total_f;
 	exp_freq[2] = control_total_f * maj_total_f;
 	exp_freq[3] = control_total_f * min_total_f;
-	//mysgx_printf("%f\t%f\t%f\t%f\n", exp_freq[0], exp_freq[1], exp_freq[2], exp_freq[3]);
 
-	/* Compute expected counts */
+	// Compute expected counts
 	float exp_count[4];
 	exp_count[0] = exp_freq[0] * pop_total;
 	exp_count[1] = exp_freq[1] * pop_total;
 	exp_count[2] = exp_freq[2] * pop_total;
 	exp_count[3] = exp_freq[3] * pop_total;
-	//mysgx_printf("%f\t%f\t%f\t%f\n", exp_count[0], exp_count[1], exp_count[2], exp_count[3]);
-	/* Compute the Chi-Squared Value */
+
+	// Compute the Chi-Squared Value
 	float chi_sq_val = 0;
 	chi_sq_val = chi_sq_val + ((case_maj - exp_count[0]) * (case_maj - exp_count[0]) / exp_count[0]);
 	chi_sq_val = chi_sq_val + ((case_min - exp_count[1]) * (case_min - exp_count[1]) / exp_count[1]);
 	chi_sq_val = chi_sq_val + ((control_maj - exp_count[2]) * (control_maj - exp_count[2]) / exp_count[2]);
 	chi_sq_val = chi_sq_val + ((control_min - exp_count[3]) * (control_min - exp_count[3]) / exp_count[3]);
-	//mysgx_printf("%f\n", chi_sq_val);
 
 	return chi_sq_val;
 }
@@ -807,12 +799,10 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 	{
 		if(rhht_snp_table->buffer[i].key != 0)
 		{
-			/* Calculate the chi squared value */
+			// Calculate the chi squared value
 			chi_sq_val = chi_sq(rhht_snp_table->buffer[i].case_count, rhht_snp_table->buffer[i].control_count, case_total, control_total);
-			//double pval = pochisq((double) chi_sq_val);
-			//mysgx_printf("%d\t%f\t%.12f\n", snp_table->buffer[i].key, chi_sq_val, pval);
 
-			/* If the top-k array is not full, add current snp without any checks */
+			// If the top-k array is not full, add current snp without any checks
 			if(num_used < 10)
 			{
 				top_k_ids[num_used] = rhht_snp_table->buffer[i].key;
@@ -821,7 +811,7 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 			}
 			else
 			{
-				/* Find the index of the minimum chi squared value in the top-k array */
+				// Find the index of the minimum chi squared value in the top-k array
 				uint8_t index_min = 0;
 				for(uint8_t j = 1; j < 10; j++)
 				{
@@ -831,7 +821,7 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 					}
 				}
 
-				/* If the chi squared value of the current element is greater than that of index min, replace */
+				// If the chi squared value of the current element is greater than that of index min, replace
 				if(chi_sq_val > top_k_chi_sq[index_min])
 				{
 					top_k_ids[index_min] = rhht_snp_table->buffer[i].key;
@@ -841,16 +831,13 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 		}
 	}
 	
-	//mysgx_printf("\nTop-10 SNPs with Chi-Squared Values and P-Values\n\n");
 	for(uint8_t i = 0; i < 10; i++)
 	{
 		double pval = pochisq((double) top_k_chi_sq[i]);
-		//mysgx_printf("rs%-30d\t%-30f\t%-30.8f\n", top_k_ids[i], top_k_chi_sq[i], pval);
 
 		// Proper output test
-		enclave_res_buf[i] = top_k_ids[i];
+		//enclave_res_buf[i] = top_k_ids[i];
 	}
-	//mysgx_printf("\n");
 }
 
 void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total)
@@ -900,16 +887,13 @@ void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total)
 		}
 	}
 
-	//mysgx_printf("\nTop-10 SNPs with Chi-Squared Values and P-Values\n\n");
 	for(uint8_t i = 0; i < 10; i++)
 	{
 		double pval = pochisq((double) top_k_chi_sq[i]);
-		//mysgx_printf("rs%-30d\t%-30f\t%-30.8f\n", top_k_ids[i], top_k_chi_sq[i], pval);
 
 		// Proper output test
-		enclave_res_buf[i] = top_k_ids[i];
+		//enclave_res_buf[i] = top_k_ids[i];
 	}
-	//mysgx_printf("\n");
 }
 
 void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
@@ -922,12 +906,10 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 	{
 		if(oaht->buffer[i].key != 0)
 		{
-			/* Calculate the chi squared value */
+			// Calculate the chi squared value
 			chi_sq_val = chi_sq(oaht->buffer[i].case_count, oaht->buffer[i].control_count, case_total, control_total);
-			//double pval = pochisq((double) chi_sq_val);
-			//mysgx_printf("%d\t%f\t%.12f\n", snp_table->buffer[i].key, chi_sq_val, pval);
 
-			/* If the top-k array is not full, add current snp without any checks */
+			// If the top-k array is not full, add current snp without any checks
 			if(num_used < 10)
 			{
 				top_k_ids[num_used] = oaht->buffer[i].key;
@@ -936,7 +918,7 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 			}
 			else
 			{
-				/* Find the index of the minimum chi squared value in the top-k array */
+				// Find the index of the minimum chi squared value in the top-k array
 				uint8_t index_min = 0;
 				for(uint8_t j = 1; j < 10; j++)
 				{
@@ -946,7 +928,7 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 					}
 				}
 
-				/* If the chi squared value of the current element is greater than that of index min, replace */
+				// If the chi squared value of the current element is greater than that of index min, replace
 				if(chi_sq_val > top_k_chi_sq[index_min])
 				{
 					top_k_ids[index_min] = oaht->buffer[i].key;
@@ -955,113 +937,29 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 			}
 		}
 	}
-	//mysgx_printf("\nTop-10 SNPs with Chi-Squared Values and P-Values\n\n");
 	for(uint8_t i = 0; i < 10; i++)
 	{
 		double pval = pochisq((double) top_k_chi_sq[i]);
-		//mysgx_printf("rs%-30d\t%-30f\t%-30.8f\n", top_k_ids[i], top_k_chi_sq[i], pval);
 
 		// Proper output test
-		enclave_res_buf[i] = top_k_ids[i];
+		//enclave_res_buf[i] = top_k_ids[i];
 	}
-	//mysgx_printf("\n");
 }
-/*************** END: Chi-Sqaured Test Functions ***************/
+/***** END: Enclave Chi-Sqaured Test Functions *****/
 
+/***** BEGIN: Enclave Min-Heap Public ECALL Interface *****/
 void enclave_init_mh()
 {
 	allocate_heap(MH_INIT_CAPACITY);
 }
+/***** END: Enclave Min-Heap Public ECALL Interface *****/
 
-/*************** BEGIN: Enclave Test Program Functions ***************/
-uint64_t sum;
-
-void enclave_init_sum()
-{
-	sum = 0;
-}
-
-void enclave_get_result(uint64_t* result)
-{
-	memcpy(result, &sum, sizeof(uint64_t));
-}
-
-void enclave_get_res_buf(uint32_t* res)
-{
-	memcpy(res, &enclave_res_buf, 10 * sizeof(uint32_t));
-}
-
-void enclave_get_res_cms(uint32_t* res)
+/***** BEGIN: Enclave Result/Output Public ECALL Interface *****/
+void enclave_get_res(uint32_t* res)
 {
 	for(size_t i = 0; i < mh->curr_heap_size; i++)
 	{
 		res[i] = mh->mh_array[i].key;
 	}
 }
-
-void enclave_get_res_csk(uint32_t* res)
-{
-	for(size_t i = 0; i < mh->curr_heap_size; i++)
-	{
-		res[i] = mh->mh_array[i].key;
-	}
-}
-
-void enclave_get_res_cms_ids(uint32_t* res)
-{
-	for(size_t i = 0; i < (1 << 23); i++)
-	{
-		res[i] = enclave_cms_id_buf[i];
-	}
-}
-
-void enclave_get_res_cms_ests(int16_t* res)
-{
-	for(size_t i = 0; i < (1 << 23); i++)
-	{
-		res[i] = enclave_cms_est_buf[i];
-	}
-}
-
-/*void enclave_out_function(char* buf, size_t len)
-{
-	if(len <= (size_t) MAX_BUF_LEN)
-	{
-		memcpy(buf, enclave_buffer, len);
-	}
-}*/
-
-int enclave_decrypt_for_me(sgx_ra_context_t ctx, unsigned char *ciphertext, int ciphertext_len, unsigned char *plaintext, uint8_t* _sk)
-{
-    uint8_t sk[16];
-    enclave_getkey(sk);
-    // This is done to print out the key. In the real use key sk should not be leaked from the enclave.
-    memcpy(_sk, sk, 16);
-    size_t plen = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
-    return plen;
-}
-
-void enclave_decrypt_process(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
-{
-	// Buffer to hold the secret key
-    uint8_t sk[16];
-
-	// Buffer to hold the decrypted plaintext
-	// Plaintext length can't be longer than the ciphertext length
-	uint8_t* plaintext = new uint8_t[ciphertext_len];
-
-	// Internal Enclave function to fetch the secret key
-    enclave_getkey(sk);
-
-	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
-    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
-
-	// Process data
-	for(size_t i = 0; i < plaintext_len / 4; i++)
-	{
-		sum = sum + ((uint32_t*) plaintext)[i];
-	}
-
-	// We've processed the data, now clear it
-	delete[] plaintext;
-}
+/***** END: Enclave Result/Output Public ECALL Interface *****/

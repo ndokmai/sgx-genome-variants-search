@@ -27,50 +27,21 @@ enclave
 		// Application specific enclave functions
 		public void enclave_derive_key(sgx_ra_context_t ctx);
 
-		public void enclave_init_sum();
-
-		//public void enclave_out_function([out, size = len] char* buf, size_t len);
-
-		public int enclave_decrypt_for_me(sgx_ra_context_t ctx,
-											[in, size = ciphertext_len] unsigned char* ciphertext, 
-											int ciphertext_len, 
-											[user_check] unsigned char* plaintext,
-											[out, size = 16] uint8_t* sk);
-
-//		public void enclave_decrypt_process(sgx_ra_context_t ctx,
-//											[in, size = ciphertext_len] uint8_t* ciphertext,
-//											size_t ciphertext_len);
-		public void enclave_decrypt_process(sgx_ra_context_t ctx,
-											[user_check] uint8_t* ciphertext,
-											size_t ciphertext_len);
-
-		public void enclave_get_result([out, size = 8] uint64_t* result);
-		public void enclave_get_res_buf([out, size = 40] uint32_t* res);
-		public void enclave_get_res_cms([out, size = 524288] uint32_t* res);
-		public void enclave_get_res_csk([out, size = 4096] uint32_t* res);
-		public void enclave_get_res_cms_ids([out, size = 32000000] uint32_t* res);
-		public void enclave_get_res_cms_ests([out, size = 16000000] int16_t* res);
+		// Public ECALL interface for getting results out of the enclave
+		// NOTE: This output is NOT encrypted since this a proof of concept
+		public void enclave_get_res([out, size = 524288] uint32_t* res);
 
 		// Open-Addressing Hash-Table public ECALL interface
 		public void enclave_init_oa();
-		public void enclave_decrypt_process_oa(sgx_ra_context_t ctx,
-													[user_check] uint8_t* ciphertext,
-													size_t ciphertext_len);
+		public void enclave_decrypt_process_oa(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
 		// Robin-Hood-Hash-Table public ECALL interface
 		public void enclave_init_rhht();
-		public void enclave_decrypt_process_rhht(sgx_ra_context_t ctx,
-													[user_check] uint8_t* ciphertext,
-													size_t ciphertext_len);
+		public void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
 		// Chained-Move-to-Front Hash Table public ECALL interface
 		public void enclave_init_cmtf();
-		public void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len, uint32_t type); // uint32_t chunk_num)
-
-		// Chi-Squared Test public ECALL interface
-		public void oa_init_chi_sq(uint16_t case_count, uint16_t control_count);
-		public void rhht_init_chi_sq(uint16_t case_count, uint16_t control_count);
-		public void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total);
+		public void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len, uint32_t type);
 
 		// Count-Min-Sketch public ECALL interface
 		public void enclave_init_cms();
@@ -84,6 +55,11 @@ enclave
 
 		// Min-Heap public ECALL interface
 		public void enclave_init_mh();
+
+		// Chi-Squared Test public ECALL interface
+		public void oa_init_chi_sq(uint16_t case_count, uint16_t control_count);
+		public void rhht_init_chi_sq(uint16_t case_count, uint16_t control_count);
+		public void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total);
 	};
     
 	untrusted

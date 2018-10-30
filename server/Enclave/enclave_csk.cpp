@@ -33,10 +33,11 @@ uint32_t csk_cal_hash(uint64_t x, uint64_t a, uint64_t b)
 
 void csk_init(uint32_t width, uint32_t depth)
 {
+	m_csk = (csk*) malloc(sizeof(csk));
+
 	m_csk->width = width;
 	m_csk->depth = depth;
 	m_csk->width_minus_one = width - 1;
-	//self->shift = __builtin_clz(width - 1);
 	m_csk->seeds = NULL;
 
 	m_csk->sketch = (int16_t**) malloc(depth * sizeof(int16_t*));
@@ -48,7 +49,6 @@ void csk_init(uint32_t width, uint32_t depth)
 	}
 
 	m_csk->seeds = (uint64_t*) malloc(depth * sizeof(uint64_t) << 2);
-	//self->custom_signs = (int16_t*) malloc(depth * sizeof(int16_t));
 
 	for(size_t i = 0; i < depth << 1; i++)
 	{
