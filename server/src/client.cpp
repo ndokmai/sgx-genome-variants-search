@@ -531,7 +531,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "First Pass, updating CMS ...\n");
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "First Pass, processing file: %d ...\n", i);
+		//fprintf(stderr, "First Pass, processing file: %d ...\n", i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -622,6 +622,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "Second Pass (CMS) took: %lf seconds\n", duration);
 
 	// Make a final ECALL to receive the results and report results
+	/*
 	uint32_t* my_res;
 	my_res = (uint32_t*) malloc(sizeof(uint32_t) * (1 << 17));
 
@@ -632,6 +633,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 		fprintf(stdout, "rs%lu\n", (unsigned long) my_res[i]);
 	}
 	free(my_res);
+	*/
 }
 
 void app_cms_mt(MsgIO* msgio, config_t& config)
@@ -656,9 +658,9 @@ void app_cms_mt(MsgIO* msgio, config_t& config)
 	//uint32_t num_files = 44000;
 
 	// Start timer
-	std::clock_t start;
-	double duration;
-	start = std::clock();
+	//std::clock_t start;
+	//double duration;
+	//start = std::clock();
 
 	// First Pass: Update the CMS structure
 	size_t i;
@@ -713,18 +715,6 @@ void app_cms_mt(MsgIO* msgio, config_t& config)
 			t6.join();
 			t7.join();
 
-			std::thread t8(run_thread_cms, 8);
-			std::thread t9(run_thread_cms, 9);
-			std::thread t10(run_thread_cms, 10);
-			std::thread t11(run_thread_cms, 11);
-			std::thread t12(run_thread_cms, 12);
-
-			t8.join();
-			t9.join();
-			t10.join();
-			t11.join();
-			t12.join();
-
 			enclave_clear_cms(eid, ra_ctx);
 
 			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
@@ -736,13 +726,14 @@ void app_cms_mt(MsgIO* msgio, config_t& config)
 	}
 
 	// Stop timer and report time for the first pass over the data
-	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
-	fprintf(stderr, "First Pass (CMS) took: %lf seconds\n", duration);
+	//duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
+	//fprintf(stderr, "First Pass (CMS) took: %lf seconds\n", duration);
+
 	// Initialize the min-heap within the enclave
 	enclave_init_mh(eid);
 
 	// Restart timer
-	start = std::clock();
+	//start = std::clock();
 
 	// Second Pass: Query the CMS structure
 	fprintf(stderr, "Second pass, querying CMS ...\n");
@@ -783,11 +774,10 @@ void app_cms_mt(MsgIO* msgio, config_t& config)
 	}
 
 	// Stop timer and report time for the second pass over the data
-	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
-	fprintf(stderr, "Second Pass (CMS) took: %lf seconds\n", duration);
+	//duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
+	//fprintf(stderr, "Second Pass (CMS) took: %lf seconds\n", duration);
 
 	// Make a final ECALL to receive the results and report results
-	/*
 	uint32_t* my_res;
 	my_res = (uint32_t*) malloc(sizeof(uint32_t) * (1 << 17));
 
@@ -798,7 +788,6 @@ void app_cms_mt(MsgIO* msgio, config_t& config)
 		fprintf(stdout, "rs%lu\n", (unsigned long) my_res[i]);
 	}
 	free(my_res);
-	*/
 }
 
 int main(int argc, char** argv)
@@ -811,9 +800,9 @@ int main(int argc, char** argv)
 		//app_oa(msgio,config);
 		//app_rhht(msgio, config);
 		//app_cmtf(msgio, config);
-		//app_cms(msgio, config);
+		app_cms(msgio, config);
 		//app_csk(msgio, config);
-		app_cms_mt(msgio, config);
+		//app_cms_mt(msgio, config);
 		finalize(msgio, config);
 	}
 }

@@ -155,11 +155,11 @@ int16_t csk_query_median_even(uint64_t item)
 	qsort(values, m_csk->depth, sizeof(int16_t), csk_cmpfunc_int16);
 
 	// Get median of values
-	if(values[m_csk->depth / 2] < 0)
+	if(values[m_csk->depth / 2] < -100)
 	{
 		median = values[m_csk->depth / 2 - 1];
 	}
-	else if(values[m_csk->depth / 2 - 1] > 0)
+	else if(values[m_csk->depth / 2 - 1] > 100)
 	{
 		median = values[m_csk->depth / 2];
 	}

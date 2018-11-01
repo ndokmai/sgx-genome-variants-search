@@ -160,11 +160,11 @@ int16_t cms_query_median_even(uint64_t item)
 	qsort(values, m_cms->depth, sizeof(int16_t), cmpfunc_int16);
 
 	// Get median of values
-	if(values[m_cms->depth / 2] < 0)
+	if(values[m_cms->depth / 2] < -100)
 	{
 		median = values[m_cms->depth / 2 - 1];
 	}
-	else if(values[m_cms->depth / 2 - 1] > 0)
+	else if(values[m_cms->depth / 2 - 1] > 100)
 	{
 		median = values[m_cms->depth / 2];
 	}
