@@ -3,9 +3,19 @@
 #include <fstream>
 #include <sstream>
 #include <ctime>
+#include <thread>
+#include "sgx_urts.h"
 #include "ra.h"
 #include "Enclave_u.h"
 #include "msgio.h"
+
+int global_eid;
+
+void run_thread_cms(int thread_num)
+{
+	sgx_status_t ret;
+	ecall_thread_cms(global_eid, &ret, thread_num);
+}
 
 int parse(char* process_name, char* host_port, config_t &config)
 {
@@ -624,6 +634,173 @@ void app_cms(MsgIO* msgio, config_t& config)
 	free(my_res);
 }
 
+void app_cms_mt(MsgIO* msgio, config_t& config)
+{
+	// Get the Enclave ID from the configuration
+	auto& eid = config.eid;
+	global_eid = eid;
+
+	// Get the Remote Attestation context from the configuration
+	auto& ra_ctx = config.ra_ctx;
+
+	// Make an ECALL to initialize the Enclave CMS structure
+	enclave_init_cms(eid);
+
+	// Set the chunk size for receiving large amounts of data
+	uint32_t chunk_size = 500000;
+
+	// Set app specific variables
+	uint32_t case_count = 2000;
+	uint32_t control_count = 2000;
+	uint32_t num_files = 2000;
+	//uint32_t num_files = 44000;
+
+	// Start timer
+	std::clock_t start;
+	double duration;
+	start = std::clock();
+
+	// First Pass: Update the CMS structure
+	size_t i;
+	fprintf(stderr, "First Pass, updating CMS ...\n");
+	for(i = 0; i < num_files; i++)
+	{
+		//fprintf(stderr, "First Pass, processing file: %d ...\n", i);
+
+		// First, receive the total number of elements to be received
+		uint8_t* num_elems_buf;
+		size_t len_num_elems;
+		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
+
+		// Now, receive and process next data chunk until all data is processed
+		uint32_t num_elems_rem = num_elems;
+		uint32_t num_elems_rcvd = 0;
+		while(num_elems_rcvd != num_elems)
+		{
+			size_t to_read_elems = 0;
+			if(num_elems_rem < chunk_size)
+			{
+				to_read_elems = num_elems_rem;
+			}
+			else
+			{
+				to_read_elems = chunk_size;
+			}
+		
+			// Receive data (encrypted)
+			uint8_t* ciphertext;
+			size_t ciphertext_len;
+			msgio->read_bin(&ciphertext, &ciphertext_len);
+
+			enclave_decrypt_store_cms(eid, ra_ctx, ciphertext, ciphertext_len);
+
+			std::thread t0(run_thread_cms, 0);
+			std::thread t1(run_thread_cms, 1);
+			std::thread t2(run_thread_cms, 2);
+			std::thread t3(run_thread_cms, 3);
+			std::thread t4(run_thread_cms, 4);
+			std::thread t5(run_thread_cms, 5);
+			std::thread t6(run_thread_cms, 6);
+			std::thread t7(run_thread_cms, 7);
+
+			t0.join();
+			t1.join();
+			t2.join();
+			t3.join();
+			t4.join();
+			t5.join();
+			t6.join();
+			t7.join();
+
+			std::thread t8(run_thread_cms, 8);
+			std::thread t9(run_thread_cms, 9);
+			std::thread t10(run_thread_cms, 10);
+			std::thread t11(run_thread_cms, 11);
+			std::thread t12(run_thread_cms, 12);
+
+			t8.join();
+			t9.join();
+			t10.join();
+			t11.join();
+			t12.join();
+
+			enclave_clear_cms(eid, ra_ctx);
+
+			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+			num_elems_rem = num_elems_rem - to_read_elems;
+
+			// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+			delete[] ciphertext;
+		}
+	}
+
+	// Stop timer and report time for the first pass over the data
+	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
+	fprintf(stderr, "First Pass (CMS) took: %lf seconds\n", duration);
+	// Initialize the min-heap within the enclave
+	enclave_init_mh(eid);
+
+	// Restart timer
+	start = std::clock();
+
+	// Second Pass: Query the CMS structure
+	fprintf(stderr, "Second pass, querying CMS ...\n");
+
+	// First, receive the total number of elements to be received
+	uint8_t* num_elems_buf;
+	size_t len_num_elems;
+	msgio->read_bin(&num_elems_buf, &len_num_elems);
+	uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
+
+	// Now, receive and process next data chunk until all data is processed
+	uint32_t num_elems_rem = num_elems;
+	uint32_t num_elems_rcvd = 0;
+	while(num_elems_rcvd != num_elems)
+	{
+		size_t to_read_elems = 0;
+		if(num_elems_rem < chunk_size)
+		{
+			to_read_elems = num_elems_rem;
+		}
+		else
+		{
+			to_read_elems = chunk_size;
+		}
+		
+		// Receive data (encrypted)
+		uint8_t* ciphertext;
+		size_t ciphertext_len;
+		msgio->read_bin(&ciphertext, &ciphertext_len);
+
+		// Make an ECALL to decrypt the data and process it inside the Enclave
+		enclave_decrypt_query_cms(eid, ra_ctx, ciphertext, ciphertext_len);
+		num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+		num_elems_rem = num_elems_rem - to_read_elems;
+
+		// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+		delete[] ciphertext;
+	}
+
+	// Stop timer and report time for the second pass over the data
+	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
+	fprintf(stderr, "Second Pass (CMS) took: %lf seconds\n", duration);
+
+	// Make a final ECALL to receive the results and report results
+	/*
+	uint32_t* my_res;
+	my_res = (uint32_t*) malloc(sizeof(uint32_t) * (1 << 17));
+
+	enclave_get_res(eid, my_res);
+
+	for(size_t i = 0; i < (1 << 17); i++)
+	{
+		fprintf(stdout, "rs%lu\n", (unsigned long) my_res[i]);
+	}
+	free(my_res);
+	*/
+}
+
 int main(int argc, char** argv)
 {
 	config_t config;
@@ -635,7 +812,8 @@ int main(int argc, char** argv)
 		//app_rhht(msgio, config);
 		//app_cmtf(msgio, config);
 		//app_cms(msgio, config);
-		app_csk(msgio, config);
+		//app_csk(msgio, config);
+		app_cms_mt(msgio, config);
 		finalize(msgio, config);
 	}
 }

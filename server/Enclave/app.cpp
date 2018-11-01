@@ -34,11 +34,178 @@
 // Global Enclave Buffers
 // TODO: Dynamically allocating and keeping track of this might be a good idea
 uint32_t enclave_res_buf[ENC_RES_BUF_LEN];
+uint8_t* ptxt;
+uint8_t ptxt_len;
+
+sgx_status_t ecall_thread_cms(int thread_num)
+{
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = ptxt_len / 4;
+
+	// Get the meta information first
+	uint32_t patient_status = ((uint32_t*) ptxt) [0];
+	uint32_t num_het_start = ((uint32_t*) ptxt) [1];
+
+	// Sign is +1 for case and -1 for control
+	int16_t sign = 1;
+	if(patient_status == 0)
+	{
+		sign = -1;
+	}
+
+	// Update the current row of the CMS
+	int16_t count = ALLELE_HOMOZYGOUS * sign;
+	size_t i;
+	uint64_t rs_id_uint;
+	for(i = 2; i < num_het_start + 2; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+		//cms_update_var(rs_id_uint, ALLELE_HOMOZYGOUS * sign);
+
+		uint32_t hash;
+		uint32_t pos;
+		m_cms->st_length = m_cms->st_length + count;
+
+		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
+		pos = hash & m_cms->width_minus_one;
+
+		if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		{
+			continue;
+		}
+
+		if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		{
+			continue;
+		}
+
+		m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
+	}
+
+	count = ALLELE_HETEROZYGOUS * sign;
+	for(i = num_het_start + 2; i < num_elems; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+		//cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
+
+		uint32_t hash;
+		uint32_t pos;
+		m_cms->st_length = m_cms->st_length + count;
+
+		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
+		pos = hash & m_cms->width_minus_one;
+
+		if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		{
+			continue;
+		}
+
+		if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		{
+			continue;
+		}
+
+		m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
+	}
+	return SGX_SUCCESS;
+}
 
 /***** BEGIN: Enclave Count-Min-Sketch Public Interface *****/
 void enclave_init_cms()
 {
 	cms_init(CMS_WIDTH, CMS_DEPTH);
+}
+
+void enclave_decrypt_store_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+    uint8_t sk[16];
+
+	// Plaintext length can't be longer than the ciphertext length
+	ptxt = (uint8_t*) malloc(sizeof(uint8_t) * ciphertext_len);
+
+	// Internal Enclave function to fetch the secret key
+    enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the true length of the plaintext
+    ptxt_len = enclave_decrypt(ciphertext, ciphertext_len, sk, ptxt);
+}
+
+void enclave_clear_cms(sgx_ra_context_t ctx)
+{
+	free(ptxt);
+}
+
+void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num)
+{
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = ptxt_len / 4;
+
+	// Get the meta information first
+	uint32_t patient_status = ((uint32_t*) ptxt) [0];
+	uint32_t num_het_start = ((uint32_t*) ptxt) [1];
+
+	// Sign is +1 for case and -1 for control
+	int16_t sign = 1;
+	if(patient_status == 0)
+	{
+		sign = -1;
+	}
+
+	// Update the current row of the CMS
+	int16_t count = ALLELE_HOMOZYGOUS * sign;
+	size_t i;
+	uint64_t rs_id_uint;
+	for(i = 2; i < num_het_start + 2; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+		//cms_update_var(rs_id_uint, ALLELE_HOMOZYGOUS * sign);
+
+		uint32_t hash;
+		uint32_t pos;
+		m_cms->st_length = m_cms->st_length + count;
+
+		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
+		pos = hash & m_cms->width_minus_one;
+
+		if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		{
+			continue;
+		}
+
+		if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		{
+			continue;
+		}
+
+		m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
+	}
+
+	count = ALLELE_HETEROZYGOUS * sign;
+	for(i = num_het_start + 2; i < num_elems; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+		//cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
+
+		uint32_t hash;
+		uint32_t pos;
+		m_cms->st_length = m_cms->st_length + count;
+
+		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
+		pos = hash & m_cms->width_minus_one;
+
+		if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		{
+			continue;
+		}
+
+		if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		{
+			continue;
+		}
+
+		m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
+	}
 }
 
 void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)

@@ -1,12 +1,20 @@
 <EnclaveConfiguration>
 	<ProdID>0</ProdID>
 	<ISVSVN>0x1</ISVSVN>
-	<StackMaxSize>0x4000000</StackMaxSize>
-	<HeapMaxSize>0x10000000</HeapMaxSize>
-	<TCSNum>1</TCSNum>
+
+	<!-- If TCSMaxNum == TCSNum == TCSMinPool, there is no dynamic thread -->
+	<!-- If TCSMaxNum is omitted, it defaults to TCSNum -->
+	<!-- This means currently 8 static threads are available for this configuration -->
+	<TCSMaxNum>8</TCSMaxNum>
+	<TCSNum>8</TCSNum>
+	<TCSMinPool>8</TCSMinPool>
 	<TCSPolicy>1</TCSPolicy>
+
+	<StackMaxSize>0x040000</StackMaxSize>
+	<HeapMaxSize>0x10000000</HeapMaxSize>
+
 	<!-- Recommend changing 'DisableDebug' to 1 to make the enclave undebuggable for enclave release -->
 	<DisableDebug>0</DisableDebug>
 	<MiscSelect>0</MiscSelect>
 	<MiscMask>0xFFFFFFFF</MiscMask>
-	</EnclaveConfiguration>
+</EnclaveConfiguration>
