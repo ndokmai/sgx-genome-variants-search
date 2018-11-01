@@ -28,8 +28,8 @@
 #define CMS_WIDTH			(1 << 19)
 #define	CMS_DEPTH			13
 
-#define	CSK_WIDTH			(1 << 19)
-#define	CSK_DEPTH			13
+#define	CSK_WIDTH			(1 << 22)
+#define	CSK_DEPTH			12
 
 // Global Enclave Buffers
 // TODO: Dynamically allocating and keeping track of this might be a good idea
