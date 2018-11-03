@@ -25,11 +25,11 @@
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
-#define CMS_WIDTH			(1 << 18)
+#define CMS_WIDTH			(1 << 21)
 #define	CMS_DEPTH			8
 
-#define	CSK_WIDTH			(1 << 22)
-#define	CSK_DEPTH			12
+#define	CSK_WIDTH			(1 << 21)
+#define	CSK_DEPTH			8
 
 // Global Enclave Buffers
 // TODO: Dynamically allocating and keeping track of this might be a good idea
@@ -107,6 +107,83 @@ sgx_status_t ecall_thread_cms(int thread_num)
 
 		m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
 	}
+	return SGX_SUCCESS;
+}
+
+sgx_status_t ecall_thread_csk(int thread_num)
+{
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = ptxt_len / 4;
+
+	// Get the meta information first
+	uint32_t patient_status = ((uint32_t*) ptxt) [0];
+	uint32_t num_het_start = ((uint32_t*) ptxt) [1];
+
+	// Sign is +1 for case and -1 for control
+	int16_t sign = 1;
+	if(patient_status == 0)
+	{
+		sign = -1;
+	}
+
+	// Update the current row of the CSK
+	int16_t count = ALLELE_HOMOZYGOUS * sign;
+	int16_t count_;
+	size_t i;
+	uint64_t rs_id_uint;
+	for(i = 2; i < num_het_start + 2; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+
+		uint32_t hash;
+		uint32_t pos;
+
+		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
+		pos = hash & m_csk->width_minus_one;
+
+		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
+		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
+
+		if(m_csk->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		{
+			continue;
+		}
+
+		if(m_csk->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		{
+			continue;
+		}
+
+		m_csk->sketch[thread_num][pos] = m_csk->sketch[thread_num][pos] + count;
+	}
+
+	count = ALLELE_HETEROZYGOUS * sign;
+	for(i = num_het_start + 2; i < num_elems; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+
+		uint32_t hash;
+		uint32_t pos;
+
+		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
+		pos = hash & m_csk->width_minus_one;
+
+		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
+		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
+
+		if(m_csk->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		{
+			continue;
+		}
+
+		if(m_csk->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		{
+			continue;
+		}
+
+		m_csk->sketch[thread_num][pos] = m_csk->sketch[thread_num][pos] + count;
+	}
+
 	return SGX_SUCCESS;
 }
 
@@ -330,6 +407,101 @@ void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t
 void enclave_init_csk()
 {
 	csk_init(CSK_WIDTH, CSK_DEPTH);
+}
+
+void enclave_decrypt_store_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+    uint8_t sk[16];
+
+	// Plaintext length can't be longer than the ciphertext length
+	ptxt = (uint8_t*) malloc(sizeof(uint8_t) * ciphertext_len);
+
+	// Internal Enclave function to fetch the secret key
+    enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the true length of the plaintext
+    ptxt_len = enclave_decrypt(ciphertext, ciphertext_len, sk, ptxt);
+}
+
+void enclave_clear_csk(sgx_ra_context_t ctx)
+{
+	free(ptxt);
+}
+
+void enclave_update_csk(sgx_ra_context_t ctx, uint32_t thread_num)
+{
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = ptxt_len / 4;
+
+	// Get the meta information first
+	uint32_t patient_status = ((uint32_t*) ptxt) [0];
+	uint32_t num_het_start = ((uint32_t*) ptxt) [1];
+
+	// Sign is +1 for case and -1 for control
+	int16_t sign = 1;
+	if(patient_status == 0)
+	{
+		sign = -1;
+	}
+
+	// Update the current row of the CSK
+	int16_t count = ALLELE_HOMOZYGOUS * sign;
+	int16_t count_;
+	size_t i;
+	uint64_t rs_id_uint;
+	for(i = 2; i < num_het_start + 2; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+
+		uint32_t hash;
+		uint32_t pos;
+
+		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
+		pos = hash & m_csk->width_minus_one;
+
+		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
+		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
+
+		if(m_csk->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		{
+			continue;
+		}
+
+		if(m_csk->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		{
+			continue;
+		}
+
+		m_csk->sketch[thread_num][pos] = m_csk->sketch[thread_num][pos] + count;
+	}
+
+	count = ALLELE_HETEROZYGOUS * sign;
+	for(i = num_het_start + 2; i < num_elems; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+
+		uint32_t hash;
+		uint32_t pos;
+
+		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
+		pos = hash & m_csk->width_minus_one;
+
+		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
+		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
+
+		if(m_csk->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		{
+			continue;
+		}
+
+		if(m_csk->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		{
+			continue;
+		}
+
+		m_csk->sketch[thread_num][pos] = m_csk->sketch[thread_num][pos] + count;
+	}
 }
 
 void enclave_decrypt_update_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
