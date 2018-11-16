@@ -526,8 +526,8 @@ void app_cms(MsgIO* msgio, config_t& config)
 	// Set app specific variables
 	uint32_t case_count = 2000;
 	uint32_t control_count = 2000;
-	uint32_t num_files = 2000;
-	//uint32_t num_files = 44000;
+	//uint32_t num_files = 2000;
+	uint32_t num_files = 44000;
 
 	// Start timer
 	std::clock_t start;
@@ -569,6 +569,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 			enclave_decrypt_update_cms(eid, ra_ctx, ciphertext, ciphertext_len);
+			
 			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
 			num_elems_rem = num_elems_rem - to_read_elems;
 
@@ -966,8 +967,8 @@ int main(int argc, char** argv)
 		//app_oa(msgio,config);
 		//app_rhht(msgio, config);
 		//app_cmtf(msgio, config);
-		//app_cms(msgio, config);
-		app_csk(msgio, config);
+		app_cms(msgio, config);
+		//app_csk(msgio, config);
 		//app_cms_mt(msgio, config);
 		//app_csk_mt(msgio, config);
 		finalize(msgio, config);

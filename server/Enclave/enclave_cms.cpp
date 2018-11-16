@@ -90,6 +90,30 @@ void cms_update_var(uint64_t item, int16_t count)
 	}
 }
 
+/***** Test function *****/
+void cms_update_var_row(uint64_t item, int16_t count, size_t row)
+{
+	uint32_t hash;
+	uint32_t pos;
+	m_cms->st_length = m_cms->st_length + count;
+
+	hash = cal_hash(item, m_cms->seeds[row << 1], m_cms->seeds[(row << 1) + 1]);
+	pos = hash & m_cms->width_minus_one;
+
+	if(m_cms->sketch[row][pos] >= HASH_MAX && count > 0)
+	{
+		return;
+	}
+
+	if(m_cms->sketch[row][pos] <= HASH_MIN && count < 0)
+	{
+		return;
+	}
+
+	m_cms->sketch[row][pos] = m_cms->sketch[row][pos] + count;
+}
+/***** END: Test function *****/
+
 void cms_free()
 {
 	for(size_t i = 0; i < m_cms->depth; i++)

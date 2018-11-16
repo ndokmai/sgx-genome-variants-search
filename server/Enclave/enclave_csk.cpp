@@ -89,6 +89,8 @@ void csk_update_var(uint64_t item, int16_t count)
 
 		hash = csk_cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
 		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
+
+		/*
 		if(m_csk->sketch[i][pos] >= HASH_MAX && count_ > 0)
 		{
 			continue;
@@ -97,6 +99,7 @@ void csk_update_var(uint64_t item, int16_t count)
 		{
 			continue;
 		}
+		*/
 		m_csk->sketch[i][pos] = m_csk->sketch[i][pos] + count_;
 	}
 }

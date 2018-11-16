@@ -315,6 +315,7 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 	}
 
 	// Update the CMS for every element
+	/*
 	size_t i;
 	uint64_t rs_id_uint;
 	for(i = 2; i < num_het_start + 2; i++)
@@ -327,6 +328,25 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 		cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
+	}
+	*/
+
+	size_t i;
+	size_t j;
+	uint64_t rs_id_uint;
+	for(i = 0; i < m_cms->depth; i++)
+	{
+		for(j = 2; j < num_het_start + 2; j++)
+		{
+			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [j];
+			cms_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i);
+		}
+
+		for(j = num_het_start + 2; j < num_elems; j++)
+		{
+			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [j];
+			cms_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i);
+		}
 	}
 
 	// We've processed the data, now clear it
