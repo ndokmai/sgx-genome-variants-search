@@ -3,7 +3,7 @@
 SGX_SDK ?= /opt/intel/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
-SGX_PRERELEASE ?= 1
+SGX_PRERELEASE ?= 0
 
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
@@ -90,6 +90,7 @@ Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefau
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 \
+	-Wl,--version-script=Enclave/Enclave.lds
 
 Enclave_C_Objects := $(patsubst Enclave/%.cpp,obj/%.o,$(patsubst Enclave/%.c,obj/%.o,$(Enclave_C_Files)))
 Enclave_Name := Enclave.so

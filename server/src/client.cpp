@@ -526,8 +526,8 @@ void app_cms(MsgIO* msgio, config_t& config)
 	// Set app specific variables
 	uint32_t case_count = 2000;
 	uint32_t control_count = 2000;
-	//uint32_t num_files = 2000;
-	uint32_t num_files = 44000;
+	uint32_t num_files = 2000;
+	//uint32_t num_files = 44000;
 
 	// Start timer
 	std::clock_t start;

@@ -25,7 +25,7 @@
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
-#define CMS_WIDTH			(1 << 21)
+#define CMS_WIDTH			(1 << 18)
 #define	CMS_DEPTH			8
 
 #define	CSK_WIDTH			(1 << 21)

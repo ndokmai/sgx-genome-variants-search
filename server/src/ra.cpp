@@ -766,6 +766,7 @@ void finalize(MsgIO* msgio, config_t& config) {
     msgio->disconnect();
     delete msgio;
     enclave_ra_close(config.eid, &config.sgxrv, config.ra_ctx);
+	sgx_destroy_enclave(config.eid);
 
 }
 
