@@ -13,6 +13,7 @@ enclave
 		include "config.h"
 
 		public sgx_status_t ecall_thread_cms(int thread_num);
+		public sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num);
 		public sgx_status_t ecall_thread_csk(int thread_num);
 
 		public sgx_status_t get_report([out] sgx_report_t* report, [in] sgx_target_info_t* target_info);

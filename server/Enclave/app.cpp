@@ -33,7 +33,7 @@
 
 #define L1_CACHE_SIZE		(1 << 14)
 #define	L2_CACHE_SIZE		(1 << 17)
-#define	PARTITION_SIZE		(1 << 17)
+#define	PARTITION_SIZE		(1 << 20)
 
 // Global Enclave Buffers
 // TODO: Dynamically allocating and keeping track of this might be a good idea
@@ -110,6 +110,86 @@ sgx_status_t ecall_thread_cms(int thread_num)
 		}
 
 		m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
+	}
+	return SGX_SUCCESS;
+}
+
+sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num)
+{
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = ptxt_len / 4;
+
+	// Get the meta information first
+	uint32_t patient_status = ((uint32_t*) ptxt) [0];
+	uint32_t num_het_start = ((uint32_t*) ptxt) [1];
+
+	// Sign is +1 for case and -1 for control
+	int16_t sign = 1;
+	if(patient_status == 0)
+	{
+		sign = -1;
+	}
+
+	// Update the current row of the CMS for the given partition
+	int16_t count = ALLELE_HOMOZYGOUS * sign;
+	size_t i;
+	uint64_t rs_id_uint;
+	for(i = 2; i < num_het_start + 2; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+		//cms_update_var(rs_id_uint, ALLELE_HOMOZYGOUS * sign);
+
+		uint32_t hash;
+		uint32_t pos;
+		m_cms->st_length = m_cms->st_length + count;
+
+		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
+		pos = hash & m_cms->width_minus_one;
+
+		if(pos >= (part_num * PARTITION_SIZE) && pos < ((part_num + 1) * PARTITION_SIZE))
+		{
+
+			if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+			{
+				continue;
+			}
+
+			if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+			{
+				continue;
+			}
+
+			m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
+		}
+	}
+
+	count = ALLELE_HETEROZYGOUS * sign;
+	for(i = num_het_start + 2; i < num_elems; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+		//cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
+
+		uint32_t hash;
+		uint32_t pos;
+		m_cms->st_length = m_cms->st_length + count;
+
+		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
+		pos = hash & m_cms->width_minus_one;
+
+		if(pos >= (part_num * PARTITION_SIZE) && pos < ((part_num + 1) * PARTITION_SIZE))
+		{
+			if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+			{
+				continue;
+			}
+
+			if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+			{
+				continue;
+			}
+
+			m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
+		}
 	}
 	return SGX_SUCCESS;
 }
@@ -342,7 +422,7 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 	//int16_t count;
 	//uint32_t hash;
 	//uint32_t pos;
-	for(i = 0; i < m_cms->depth / 2; i = i + 2)
+	for(i = 0; i < m_cms->depth / 4; i = i + 4)
 	{
 //		for(j = 0; j < (m_cms->width / PARTITION_SIZE); j++)
 //		{ 
@@ -352,6 +432,8 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 				rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [k];
 				cms_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i);
 				cms_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i + 1);
+				cms_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i + 2);
+				cms_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i + 3);
 
 				/* CACHE AWARE TEST
 				hash = cal_hash(rs_id_uint, m_cms->seeds[i << 1], m_cms->seeds[(i << 1) + 1]);
@@ -380,6 +462,8 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 				rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [k];
 				cms_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i);
 				cms_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i + 1);
+				cms_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i + 2);
+				cms_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i + 3);
 
 				// CACHE AWARE TEST
 				/*
