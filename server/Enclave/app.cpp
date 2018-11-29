@@ -25,11 +25,15 @@
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
-#define CMS_WIDTH			(1 << 18)
+#define CMS_WIDTH			(1 << 21)
 #define	CMS_DEPTH			8
 
 #define	CSK_WIDTH			(1 << 21)
 #define	CSK_DEPTH			8
+
+#define L1_CACHE_SIZE		(1 << 14)
+#define	L2_CACHE_SIZE		(1 << 17)
+#define	PARTITION_SIZE		(1 << 17)
 
 // Global Enclave Buffers
 // TODO: Dynamically allocating and keeping track of this might be a good idea
@@ -333,20 +337,72 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 
 	size_t i;
 	size_t j;
+	size_t k;
 	uint64_t rs_id_uint;
-	for(i = 0; i < m_cms->depth; i++)
+	//int16_t count;
+	//uint32_t hash;
+	//uint32_t pos;
+	for(i = 0; i < m_cms->depth / 2; i = i + 2)
 	{
-		for(j = 2; j < num_het_start + 2; j++)
-		{
-			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [j];
-			cms_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i);
-		}
+//		for(j = 0; j < (m_cms->width / PARTITION_SIZE); j++)
+//		{ 
+			//count = ALLELE_HOMOZYGOUS * sign;
+			for(k = 2; k < num_het_start + 2; k++)
+			{
+				rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [k];
+				cms_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i);
+				cms_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i + 1);
 
-		for(j = num_het_start + 2; j < num_elems; j++)
-		{
-			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [j];
-			cms_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i);
-		}
+				/* CACHE AWARE TEST
+				hash = cal_hash(rs_id_uint, m_cms->seeds[i << 1], m_cms->seeds[(i << 1) + 1]);
+				pos = hash & m_cms->width_minus_one;
+				if(pos > (j * PARTITION_SIZE) && pos < ((j + 1) * PARTITION_SIZE))
+				{
+					if(m_cms->sketch[i][pos] >= HASH_MAX && count > 0)
+					{
+						return;
+					}
+
+					if(m_cms->sketch[i][pos] <= HASH_MIN && count < 0)
+					{
+						return;
+					}
+
+					m_cms->sketch[i][pos] = m_cms->sketch[i][pos] + count;
+					m_cms->st_length = m_cms->st_length + count;
+				}
+				*/
+			}
+
+			//count = ALLELE_HETEROZYGOUS * sign;
+			for(k = num_het_start + 2; k < num_elems; k++)
+			{
+				rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [k];
+				cms_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i);
+				cms_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i + 1);
+
+				// CACHE AWARE TEST
+				/*
+				hash = cal_hash(rs_id_uint, m_cms->seeds[i << 1], m_cms->seeds[(i << 1) + 1]);
+				pos = hash & m_cms->width_minus_one;
+				if(pos > (j * PARTITION_SIZE) && pos < ((j + 1) * PARTITION_SIZE))
+				{
+					if(m_cms->sketch[i][pos] >= HASH_MAX && count > 0)
+					{
+						return;
+					}
+
+					if(m_cms->sketch[i][pos] <= HASH_MIN && count < 0)
+					{
+						return;
+					}
+
+					m_cms->sketch[i][pos] = m_cms->sketch[i][pos] + count;
+					m_cms->st_length = m_cms->st_length + count;
+				}
+				*/
+			}
+//		}
 	}
 
 	// We've processed the data, now clear it

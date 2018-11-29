@@ -57,10 +57,10 @@ int parse(char* process_name, char* port, config_t &config)
 void app(MsgIO* msgio)
 {
 	// Hardcoded stuff that should be read from a config file really
-	int num_files = 2000;
-	char* file_dir = "/home/ckockan/test-data/chr1_all_ckz0/";
-	//int num_files = 44000;
-	//char* file_dir = "/mnt/big_part/ckockan/test-data/all_chr_ckz0/";
+	//int num_files = 2000;
+	//char* file_dir = "/home/ckockan/test-data/chr1_all_ckz0/";
+	int num_files = 44000;
+	char* file_dir = "/mnt/big_part/ckockan/test-data/all_chr_ckz0/";
 
 	// Number of elements to be sent in one round (in 32-bit uint elements, not bytes)
 	uint32_t chunk_size = 500000;
@@ -192,8 +192,8 @@ void app(MsgIO* msgio)
 	}
 
 	// Second pass, only send a single file with the unique SNP IDs
-	FILE* uniq_snps = fopen("/home/ckockan/data-sgx-misc/chr1_uniq.ckz0", "rb");
-	//FILE* uniq_snps = fopen("/home/ckockan/data-sgx-misc/all_uniq.ckz0", "rb");
+	//FILE* uniq_snps = fopen("/home/ckockan/data-sgx-misc/chr1_uniq.ckz0", "rb");
+	FILE* uniq_snps = fopen("/home/ckockan/data-sgx-misc/all_uniq.ckz0", "rb");
 	if(uniq_snps == NULL)
 	{
 		fprintf(stderr, "Error opening file\n");
