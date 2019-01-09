@@ -280,16 +280,16 @@ void enclave_init_cms()
 void enclave_decrypt_store_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
-    uint8_t sk[16];
+	uint8_t sk[16];
 
 	// Plaintext length can't be longer than the ciphertext length
 	ptxt = (uint8_t*) malloc(sizeof(uint8_t) * ciphertext_len);
 
 	// Internal Enclave function to fetch the secret key
-    enclave_getkey(sk);
+	enclave_getkey(sk);
 
 	// Decrypt the ciphertext, place it inside the plaintext buffer and return the true length of the plaintext
-    ptxt_len = enclave_decrypt(ciphertext, ciphertext_len, sk, ptxt);
+	ptxt_len = enclave_decrypt(ciphertext, ciphertext_len, sk, ptxt);
 }
 
 void enclave_clear_cms(sgx_ra_context_t ctx)
@@ -372,17 +372,17 @@ void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num)
 void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
-    uint8_t sk[16];
+	uint8_t sk[16];
 
 	// Buffer to hold the decrypted plaintext
 	// Plaintext length can't be longer than the ciphertext length
 	uint8_t* plaintext = new uint8_t[ciphertext_len];
 
 	// Internal Enclave function to fetch the secret key
-    enclave_getkey(sk);
+	enclave_getkey(sk);
 
 	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
-    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
 
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = plaintext_len / 4;
@@ -496,17 +496,17 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
-    uint8_t sk[16];
+	uint8_t sk[16];
 
 	// Buffer to hold the decrypted plaintext
 	// Plaintext length can't be longer than the ciphertext length
 	uint8_t* plaintext = new uint8_t[ciphertext_len];
 
 	// Internal Enclave function to fetch the secret key
-    enclave_getkey(sk);
+	enclave_getkey(sk);
 
 	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
-    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
 
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = plaintext_len / 4;
@@ -572,16 +572,16 @@ void enclave_init_csk()
 void enclave_decrypt_store_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
-    uint8_t sk[16];
+	uint8_t sk[16];
 
 	// Plaintext length can't be longer than the ciphertext length
 	ptxt = (uint8_t*) malloc(sizeof(uint8_t) * ciphertext_len);
 
 	// Internal Enclave function to fetch the secret key
-    enclave_getkey(sk);
+	enclave_getkey(sk);
 
 	// Decrypt the ciphertext, place it inside the plaintext buffer and return the true length of the plaintext
-    ptxt_len = enclave_decrypt(ciphertext, ciphertext_len, sk, ptxt);
+	ptxt_len = enclave_decrypt(ciphertext, ciphertext_len, sk, ptxt);
 }
 
 void enclave_clear_csk(sgx_ra_context_t ctx)
@@ -667,17 +667,17 @@ void enclave_update_csk(sgx_ra_context_t ctx, uint32_t thread_num)
 void enclave_decrypt_update_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
-    uint8_t sk[16];
+	uint8_t sk[16];
 
 	// Buffer to hold the decrypted plaintext
 	// Plaintext length can't be longer than the ciphertext length
 	uint8_t* plaintext = new uint8_t[ciphertext_len];
 
 	// Internal Enclave function to fetch the secret key
-    enclave_getkey(sk);
+	enclave_getkey(sk);
 
 	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
-    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
 
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = plaintext_len / 4;
@@ -717,17 +717,17 @@ void enclave_decrypt_update_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 void enclave_decrypt_query_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
-    uint8_t sk[16];
+	uint8_t sk[16];
 
 	// Buffer to hold the decrypted plaintext
 	// Plaintext length can't be longer than the ciphertext length
 	uint8_t* plaintext = new uint8_t[ciphertext_len];
 
 	// Internal Enclave function to fetch the secret key
-    enclave_getkey(sk);
+	enclave_getkey(sk);
 
 	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
-    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
 
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = plaintext_len / 4;
@@ -795,17 +795,17 @@ void enclave_init_oa()
 void enclave_decrypt_process_oa(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
-    uint8_t sk[16];
+	uint8_t sk[16];
 
 	// Buffer to hold the decrypted plaintext
 	// Plaintext length can't be longer than the ciphertext length
 	uint8_t* plaintext = new uint8_t[ciphertext_len];
 
 	// Internal Enclave function to fetch the secret key
-    enclave_getkey(sk);
+	enclave_getkey(sk);
 
 	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
-    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
 
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = plaintext_len / 4;
@@ -891,17 +891,17 @@ void enclave_init_rhht()
 void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
-    uint8_t sk[16];
+	uint8_t sk[16];
 
 	// Buffer to hold the decrypted plaintext
 	// Plaintext length can't be longer than the ciphertext length
 	uint8_t* plaintext = new uint8_t[ciphertext_len];
 
 	// Internal Enclave function to fetch the secret key
-    enclave_getkey(sk);
+	enclave_getkey(sk);
 
 	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
-    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
 
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = plaintext_len / 4;
@@ -938,7 +938,7 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 			else
 			{
 				insert(elem_id, 2, 0);
-			}
+			}                                    
 		}
 	}
 
@@ -987,17 +987,17 @@ void enclave_init_cmtf()
 void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len, uint32_t type)// uint32_t chunk_num)
 {
 	// Buffer to hold the secret key
-    uint8_t sk[16];
+	uint8_t sk[16];
 
 	// Buffer to hold the decrypted plaintext
 	// Plaintext length can't be longer than the ciphertext length
 	uint8_t* plaintext = new uint8_t[ciphertext_len];
 
 	// Internal Enclave function to fetch the secret key
-    enclave_getkey(sk);
+	enclave_getkey(sk);
 
 	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
-    size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
 
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = plaintext_len / 4;
