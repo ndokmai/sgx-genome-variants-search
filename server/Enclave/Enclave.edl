@@ -34,6 +34,7 @@ enclave
 		// Public ECALL interface for getting results out of the enclave
 		// NOTE: This output is NOT encrypted since this a proof of concept
 		public void enclave_get_res([out, size = 524288] uint32_t* res);
+		public void enclave_get_res_buf([out, size = 4000] uint32_t* res);
 
 		// Open-Addressing Hash-Table public ECALL interface
 		public void enclave_init_oa();
@@ -42,6 +43,10 @@ enclave
 		// Robin-Hood-Hash-Table public ECALL interface
 		public void enclave_init_rhht();
 		public void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
+
+		// Three-Pass version
+		public void enclave_init_sketch_rhht();
+		public void enclave_decrypt_process_sketch_rhht(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
 		// Chained-Move-to-Front Hash Table public ECALL interface
 		public void enclave_init_cmtf();

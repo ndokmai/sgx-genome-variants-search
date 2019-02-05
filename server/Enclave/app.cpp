@@ -19,13 +19,13 @@
 
 #define	MH_INIT_CAPACITY	(1 << 17)
 
-#define	ENC_RES_BUF_LEN		(1 << 17)
+#define	ENC_RES_BUF_LEN		1000
 
 #define OA_INIT_CAPACITY	(1 << 23)
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
-#define CMS_WIDTH			(1 << 21)
+#define CMS_WIDTH			(1 << 20)
 #define	CMS_DEPTH			8
 
 #define	CSK_WIDTH			(1 << 21)
@@ -270,6 +270,96 @@ sgx_status_t ecall_thread_csk(int thread_num)
 
 	return SGX_SUCCESS;
 }
+
+/***** BEGIN: SNP Ranking Using Sketch and RHHT *****/
+void enclave_init_sketch_rhht()
+{
+	// Allocate enclave Robin-Hood hash table
+	// TODO: Allow growing (currently not)
+	allocate_table(MH_INIT_CAPACITY * 2);
+
+	// Insert keys, initialize allele counts to be 0
+	size_t i;
+	for(i = 0; i < MH_INIT_CAPACITY; i++)
+	{
+		// NOTE: Setting allele_type to 0 is normally meaningless, this is a hack.
+		insert(mh->mh_array[i].key, 0, 0);
+	}
+
+	// Deallocate min heap
+	free_heap();
+
+	// Possibly outside enclave_init_sketch_rhht()
+	// Deallocate sketches
+}
+
+void enclave_decrypt_process_sketch_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+	uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+	enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	// Get the meta-information first
+	uint32_t patient_status = ((uint32_t*) plaintext) [0];
+	uint32_t het_start_idx = ((uint32_t*) plaintext) [1];
+
+	size_t i;
+	for(i = 2; i < het_start_idx + 2; i++)
+	{
+		uint32_t elem_id = ((uint32_t*) plaintext) [i];
+
+		int32_t index = find(elem_id);
+
+		// If found, update entry based on allele type
+		if(index != -1)
+		{
+			if(patient_status == 1)
+			{
+				rhht_snp_table->buffer[index].case_count = rhht_snp_table->buffer[index].case_count + 2;
+			}
+			else
+			{
+				rhht_snp_table->buffer[index].control_count = rhht_snp_table->buffer[index].control_count + 2;
+			}
+		}
+	}
+
+	for(i = het_start_idx + 2; i < num_elems; i++)
+	{
+		uint32_t elem_id = ((uint32_t*) plaintext) [i];
+
+		int32_t index = find(elem_id);
+
+		// If found, update entry based on allele type
+		if(index != -1)
+		{
+			if(patient_status == 1)
+			{
+				rhht_snp_table->buffer[index].case_count = rhht_snp_table->buffer[index].case_count + 1;
+			}
+			else
+			{
+				rhht_snp_table->buffer[index].control_count = rhht_snp_table->buffer[index].control_count + 1;
+			}
+		}
+	}
+
+	// We've processed the data, now clear it
+	delete[] plaintext;
+}
+/**** END: SNP Ranking Using Sketch and RHHT *****/
 
 /***** BEGIN: Enclave Count-Min-Sketch Public Interface *****/
 void enclave_init_cms()
@@ -1288,8 +1378,9 @@ float chi_sq(uint16_t case_min, uint16_t control_min, uint16_t case_total, uint1
 
 void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 {
-	uint32_t top_k_ids[10];
-	float top_k_chi_sq[10];
+	uint32_t k = 1000;
+	uint32_t top_k_ids[k];
+	float top_k_chi_sq[k];
 	uint8_t num_used = 0;
 	float chi_sq_val;
 	for(uint32_t i = 0; i < rhht_snp_table->capacity; i++)
@@ -1300,12 +1391,13 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 			chi_sq_val = chi_sq(rhht_snp_table->buffer[i].case_count, rhht_snp_table->buffer[i].control_count, case_total, control_total);
 
 			// If the top-k array is not full, add current snp without any checks
-			if(num_used < 10)
+			if(num_used < k)
 			{
 				top_k_ids[num_used] = rhht_snp_table->buffer[i].key;
 				top_k_chi_sq[num_used] = chi_sq_val;
 				num_used = num_used + 1;
 			}
+			/*
 			else
 			{
 				// Find the index of the minimum chi squared value in the top-k array
@@ -1325,15 +1417,16 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 					top_k_chi_sq[index_min] = chi_sq_val;
 				}
 			}
+			*/
 		}
 	}
 	
-	for(uint8_t i = 0; i < 10; i++)
+	for(uint32_t i = 0; i < k; i++)
 	{
-		double pval = pochisq((double) top_k_chi_sq[i]);
+		//double pval = pochisq((double) top_k_chi_sq[i]);
 
 		// Proper output test
-		//enclave_res_buf[i] = top_k_ids[i];
+		enclave_res_buf[i] = top_k_ids[i];
 	}
 }
 
@@ -1457,6 +1550,14 @@ void enclave_get_res(uint32_t* res)
 	for(size_t i = 0; i < mh->curr_heap_size; i++)
 	{
 		res[i] = mh->mh_array[i].key;
+	}
+}
+
+void enclave_get_res_buf(uint32_t* res_buf)
+{
+	for(size_t i = 0; i < 1000; i++)
+	{
+		res_buf[i] = enclave_res_buf[i];
 	}
 }
 /***** END: Enclave Result/Output Public ECALL Interface *****/
