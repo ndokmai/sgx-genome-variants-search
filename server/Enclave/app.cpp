@@ -1381,7 +1381,7 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 	uint32_t k = 1000;
 	uint32_t top_k_ids[k];
 	float top_k_chi_sq[k];
-	uint8_t num_used = 0;
+	uint32_t num_used = 0;
 	float chi_sq_val;
 	for(uint32_t i = 0; i < rhht_snp_table->capacity; i++)
 	{
@@ -1490,7 +1490,7 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 {
 	uint32_t top_k_ids[10];
 	float top_k_chi_sq[10];
-	uint8_t num_used = 0;
+	uint32_t num_used = 0;
 	float chi_sq_val;
 	for(uint32_t i = 0; i < oaht->capacity; i++)
 	{
