@@ -13,6 +13,8 @@
 #include "enclave_cmtf.h"
 #include "enclave_csk.h"
 #include "enclave_cms.h"
+#include "enclave_mcsk.h"
+#include "svd.h"
 
 #define ALLELE_HETEROZYGOUS	1
 #define	ALLELE_HOMOZYGOUS	2
@@ -28,8 +30,12 @@
 #define CMS_WIDTH			(1 << 20)
 #define	CMS_DEPTH			8
 
-#define	CSK_WIDTH			(1 << 21)
+#define	CSK_WIDTH			(1 << 20)
 #define	CSK_DEPTH			8
+
+#define MCSK_WIDTH			2000
+#define MCSK_NUM_PC			2
+#define	MCSK_EPS			0.022
 
 #define L1_CACHE_SIZE		(1 << 14)
 #define	L2_CACHE_SIZE		(1 << 17)
@@ -37,9 +43,104 @@
 
 // Global Enclave Buffers
 // TODO: Dynamically allocating and keeping track of this might be a good idea
+float enclave_mcsk_buf[2001];
 uint32_t enclave_res_buf[ENC_RES_BUF_LEN];
 uint8_t* ptxt;
 uint8_t ptxt_len;
+uint32_t column_number = 0;
+
+void mcsk_pull_row()
+{
+	for(size_t  i = 0 ; i < 2001; i++)
+	{
+		enclave_mcsk_buf[i] = m_mcsk->msketchf[0][i];
+	}
+}
+
+void enclave_init_mcsk()
+{
+	mcsk_init(MCSK_WIDTH, MCSK_NUM_PC, MCSK_EPS);
+}
+
+void enclave_decrypt_update_mcsk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+	uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+	enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	// Get the meta information first
+	uint32_t patient_status = ((uint32_t*) plaintext) [0];
+	uint32_t num_het_start = ((uint32_t*) plaintext) [1];
+
+	// Sign is +1 for case and -1 for control
+	int16_t sign = 1;
+	if(patient_status == 0)
+	{
+		sign = -1;
+	}
+
+	// Update the MCSK for every element
+	size_t i;
+	uint64_t rs_id_uint;
+	for(i = 2; i < num_het_start + 2; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
+		mcsk_update_var(rs_id_uint, column_number, 2.0);
+
+	}
+
+	for(i = num_het_start + 2; i < num_elems; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
+		mcsk_update_var(rs_id_uint, column_number, 1.0);
+
+	}
+
+	// We've processed the data, now clear it
+	delete[] plaintext;
+
+	// Increment column number
+	column_number = column_number + 1;
+}
+
+void enclave_mcsk_mean_centering()
+{
+	mcsk_mean_centering();
+}
+
+void enclave_svd()
+{
+	float** A = getmsk();
+	float** Q = (float**) malloc(MCSK_WIDTH * sizeof(float*));
+	float* Sigma = (float*) malloc(MCSK_WIDTH * sizeof(float));
+
+	for(size_t i = 0; i < MCSK_WIDTH; i++)
+	{
+		Q[i] = (float*) malloc(MCSK_WIDTH * sizeof(float));
+	}
+
+
+//	free(Sigma);
+//	for(size_t i = 0; i < MCSK_WIDTH; i++)
+//	{
+//		free(Q[i]);
+//	}
+//	free(Q);
+
+	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, Sigma, Q);
+}
 
 sgx_status_t ecall_thread_cms(int thread_num)
 {
@@ -1561,3 +1662,11 @@ void enclave_get_res_buf(uint32_t* res_buf)
 	}
 }
 /***** END: Enclave Result/Output Public ECALL Interface *****/
+
+void enclave_get_mcsk_res(float* my_res)
+{
+	for(size_t i = 0; i < 2001; i++)
+	{
+		my_res[i] = enclave_mcsk_buf[i];
+	}
+}

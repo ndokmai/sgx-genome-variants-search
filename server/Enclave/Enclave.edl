@@ -35,6 +35,8 @@ enclave
 		// NOTE: This output is NOT encrypted since this a proof of concept
 		public void enclave_get_res([out, size = 524288] uint32_t* res);
 		public void enclave_get_res_buf([out, size = 4000] uint32_t* res);
+		public void enclave_get_mcsk_res([out, size = 8004] float* my_res);
+		public void mcsk_pull_row();
 
 		// Open-Addressing Hash-Table public ECALL interface
 		public void enclave_init_oa();
@@ -67,10 +69,16 @@ enclave
 		public void enclave_decrypt_update_csk(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 		public void enclave_decrypt_query_csk(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
+		// Matrix Count-Sketch public ECALL interface
+		public void enclave_init_mcsk();
+		public void enclave_decrypt_update_mcsk(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
+		public void enclave_mcsk_mean_centering();
+
 		// Multi-threaded CSK public ECALL interface
 		public void enclave_decrypt_store_csk(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 		public void enclave_update_csk(sgx_ra_context_t ctx, uint32_t thread_num);
 		public void enclave_clear_csk(sgx_ra_context_t ctx);
+		public void enclave_svd();
 
 		// Min-Heap public ECALL interface
 		public void enclave_init_mh();

@@ -190,7 +190,7 @@ void app(MsgIO* msgio)
 			delete[] num_elems_buf;
 		}
 	}
-
+/*
 	// Second pass, only send a single file with the unique SNP IDs
 	FILE* uniq_snps = fopen("/home/ckockan/data-sgx-misc/chr1_uniq.ckz0", "rb");
 	//FILE* uniq_snps = fopen("/home/ckockan/data-sgx-misc/all_uniq.ckz0", "rb");
@@ -332,7 +332,7 @@ void app(MsgIO* msgio)
 			delete[] num_elems_buf;
 		}
 	}
-
+*/
 	return 0;
 }
 

@@ -1290,6 +1290,94 @@ void app_sketch_rhht(MsgIO* msgio, config_t& config)
 	}
 }
 
+void app_svd_mcsk(MsgIO* msgio, config_t& config)
+{
+	// Get the Enclave ID from the configuration
+	auto& eid = config.eid;
+
+	// Get the Remote Attestation context from the configuration
+	auto& ra_ctx = config.ra_ctx;
+
+	// Make an ECALL to initialize the Enclave CSK structure
+	enclave_init_mcsk(eid);
+
+	// Set the chunk size for receiving large amounts of data
+	uint32_t chunk_size = 500000;
+
+	// Set app specific variables
+	uint32_t case_count = 2000;
+	uint32_t control_count = 2000;
+	uint32_t num_files = 2000;
+	//uint32_t num_files = 44000;
+
+	// Start timer
+	std::clock_t start;
+	double duration;
+	start = std::clock();
+
+	// First Pass: Update the MCSK structure
+	size_t i;
+	fprintf(stderr, "First Pass, updating MCSK ...\n");
+	for(i = 0; i < num_files; i++)
+	{
+		//fprintf(stderr, "First pass, processing file: %d ...\n", i);
+
+		// First, receive the total number of elements to be received
+		uint8_t* num_elems_buf;
+		size_t len_num_elems;
+		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
+
+		// Now, receive and process next data chunk until all data is processed
+		uint32_t num_elems_rem = num_elems;
+		uint32_t num_elems_rcvd = 0;
+		while(num_elems_rcvd != num_elems)
+		{
+			size_t to_read_elems = 0;
+			if(num_elems_rem < chunk_size)
+			{
+				to_read_elems = num_elems_rem;
+			}
+			else
+			{
+				to_read_elems = chunk_size;
+			}
+		
+			// Receive data (encrypted)
+			uint8_t* ciphertext;
+			size_t ciphertext_len;
+			msgio->read_bin(&ciphertext, &ciphertext_len);
+
+			// Make an ECALL to decrypt the data and process it inside the Enclave
+			enclave_decrypt_update_mcsk(eid, ra_ctx, ciphertext, ciphertext_len);
+			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+			num_elems_rem = num_elems_rem - to_read_elems;
+
+			// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+			delete[] ciphertext;
+		}
+	}
+
+	// Stop timer and report time for the first pass over the data
+	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
+	fprintf(stderr, "First Pass (MCSK) took: %lf seconds\n", duration);
+
+	// Perform mean centering before SVD
+	enclave_mcsk_mean_centering(eid);
+
+	// DEBUG
+	mcsk_pull_row(eid);
+	float my_res[2001];
+	enclave_get_mcsk_res(eid, my_res);
+	for(int i = 0; i < 2001; i++)
+	{
+		fprintf(stderr, "%f\n", my_res[i]);
+	}
+
+	// SVD
+	enclave_svd(eid);
+}
+
 int main(int argc, char** argv)
 {
 	config_t config;
@@ -1305,7 +1393,8 @@ int main(int argc, char** argv)
 		//app_cms_mt(msgio, config);
 		//app_cms_mt_ca(msgio, config);
 		//app_csk_mt(msgio, config);
-		app_sketch_rhht(msgio, config);
+		//app_sketch_rhht(msgio, config);
+		app_svd_mcsk(msgio, config);
 		finalize(msgio, config);
 	}
 }
