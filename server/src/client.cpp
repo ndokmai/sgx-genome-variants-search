@@ -1374,8 +1374,15 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 		fprintf(stderr, "%f\n", my_res[i]);
 	}
 
+	// Restart timer
+	start = std::clock();
+
 	// SVD
 	enclave_svd(eid);
+
+	// Stop timer and report time for the first pass over the data
+	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
+	fprintf(stderr, "SVD took: %lf seconds\n", duration);
 }
 
 int main(int argc, char** argv)
