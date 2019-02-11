@@ -41,6 +41,7 @@ void csk_init(uint32_t width, uint32_t depth)
 	m_csk->seeds = NULL;
 
 	m_csk->sketch = (int16_t**) malloc(depth * sizeof(int16_t*));
+	m_csk->sketchf = NULL;
 
 	for(size_t i = 0; i < depth; i++)
 	{
@@ -61,17 +62,60 @@ void csk_init(uint32_t width, uint32_t depth)
 	}
 }
 
+void csk_init_f(uint32_t width, uint32_t depth)
+{
+	m_csk = (csk*) malloc(sizeof(csk));
+
+	m_csk->width = width;
+	m_csk->depth = depth;
+	m_csk->width_minus_one = width - 1;
+	m_csk->seeds = NULL;
+
+	m_csk->sketch = NULL;
+	m_csk->sketchf = (float**) malloc(depth * sizeof(float*));
+
+	for(size_t i = 0; i < depth; i++)
+	{
+		m_csk->sketchf[i] = (float*) malloc(width * sizeof(float));
+		memset(m_csk->sketchf[i], 0, width * sizeof(float));
+	}
+
+	m_csk->seeds = (uint64_t*) malloc(depth * sizeof(uint64_t) << 2);
+
+	for(size_t i = 0; i < depth << 1; i++)
+	{
+		m_csk->seeds[(i << 1)] = my_sgx_rand_csk();
+		while(m_csk->seeds[(i << 1)] == 0)
+		{
+			m_csk->seeds[(i << 1)] = my_sgx_rand_csk();
+		}
+		m_csk->seeds[(i << 1) + 1] = my_sgx_rand_csk();
+	}
+}
+
 void csk_free()
 {
-	for(size_t i = 0; i < m_csk->depth; i++)
-	{
-		free(m_csk->sketch[i]);
-	}
-	free(m_csk->sketch);
-
 	if(m_csk->seeds != NULL)
 	{
 		free(m_csk->seeds);
+	}
+
+	if(m_csk->sketch != NULL)
+	{
+		for(size_t i = 0; i < m_csk->depth; i++)
+		{
+			free(m_csk->sketch[i]);
+		}
+		free(m_csk->sketch);
+	}
+
+	if(m_csk->sketchf != NULL)
+	{
+		for(size_t i = 0; i < m_csk->depth; i++)
+		{
+			free(m_csk->sketchf[i]);
+		}
+		free(m_csk->sketchf);
 	}
 }
 
@@ -101,6 +145,35 @@ void csk_update_var(uint64_t item, int16_t count)
 		}
 		*/
 		m_csk->sketch[i][pos] = m_csk->sketch[i][pos] + count_;
+	}
+}
+
+void csk_update_var_f(uint64_t item, float count)
+{
+	uint32_t hash;
+	//int32_t sign;
+	uint32_t pos;
+	float count_;
+
+	for(size_t i = 0; i < m_csk->depth; i++)
+	{
+		hash = csk_cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+		pos = hash & m_csk->width_minus_one;
+
+		hash = csk_cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
+		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
+
+		/*
+		if(m_csk->sketch[i][pos] >= HASH_MAX && count_ > 0)
+		{
+			continue;
+		}
+		if(m_csk->sketch[i][pos] <= HASH_MIN && count_ < 0)
+		{
+			continue;
+		}
+		*/
+		m_csk->sketchf[i][pos] = m_csk->sketchf[i][pos] + count_;
 	}
 }
 

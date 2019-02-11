@@ -16,6 +16,7 @@ typedef struct csk
 	float delta;				// Error Probability
 	float epsilon;				// Error Factor
 	int16_t** sketch;
+	float** sketchf;
 
 	// For custom hash functions
 	uint64_t* seeds;
@@ -25,8 +26,10 @@ typedef struct csk
 
 uint32_t csk_cal_hash(uint64_t, uint64_t, uint64_t);
 void csk_init(uint32_t, uint32_t);
+void csk_init_f(uint32_t, uint32_t);
 void csk_free();
 void csk_update_var(uint64_t, int16_t);
+void csk_update_var_f(uint64_t, float);
 int16_t csk_query_median_odd(uint64_t item);
 int16_t csk_query_median_even(uint64_t item);
 

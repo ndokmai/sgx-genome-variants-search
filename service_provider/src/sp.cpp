@@ -128,7 +128,7 @@ void app(MsgIO* msgio)
 			{
 				fprintf(stderr, "Error opening file\n");
 			}
-			//fprintf(stderr, "Processing file: %s\n", filenames[index[i]]);
+			fprintf(stderr, "Filename: %s\n", filenames[index[i]]);
 
 			// Move the file pointer to the end of the file
 			fseek(file, 0, SEEK_END);
@@ -257,6 +257,9 @@ void app(MsgIO* msgio)
 	// Free memory
 	free(contents);
 	delete[] num_elems_buf;
+*/
+
+fprintf(stderr, "\n");
 
 	// THIRD PASS
 	// Now, read and process the files in random order
@@ -270,7 +273,7 @@ void app(MsgIO* msgio)
 			{
 				fprintf(stderr, "Error opening file\n");
 			}
-			//fprintf(stderr, "Processing file: %s\n", filenames[index[i]]);
+			fprintf(stderr, "Filename: %s\n", filenames[index[i]]);
 
 			// Move the file pointer to the end of the file
 			fseek(file, 0, SEEK_END);
@@ -332,7 +335,6 @@ void app(MsgIO* msgio)
 			delete[] num_elems_buf;
 		}
 	}
-*/
 	return 0;
 }
 

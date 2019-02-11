@@ -36,6 +36,7 @@ enclave
 		public void enclave_get_res([out, size = 524288] uint32_t* res);
 		public void enclave_get_res_buf([out, size = 4000] uint32_t* res);
 		public void enclave_get_mcsk_res([out, size = 8004] float* my_res);
+		public void enclave_get_mcsk_sigma([out, size = 8000] float* my_res);
 		public void mcsk_pull_row();
 
 		// Open-Addressing Hash-Table public ECALL interface
@@ -66,7 +67,9 @@ enclave
 
 		// Count-Sketch public ECALL interface
 		public void enclave_init_csk();
+		public void enclave_init_csk_f();
 		public void enclave_decrypt_update_csk(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
+		public void enclave_decrypt_update_csk_f(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 		public void enclave_decrypt_query_csk(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
 		// Matrix Count-Sketch public ECALL interface

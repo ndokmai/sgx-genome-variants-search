@@ -15,6 +15,7 @@
 #include "enclave_cms.h"
 #include "enclave_mcsk.h"
 #include "svd.h"
+#include "util.h"
 
 #define ALLELE_HETEROZYGOUS	1
 #define	ALLELE_HOMOZYGOUS	2
@@ -48,6 +49,8 @@ uint32_t enclave_res_buf[ENC_RES_BUF_LEN];
 uint8_t* ptxt;
 uint8_t ptxt_len;
 uint32_t column_number = 0;
+uint32_t file_idx = 0;
+float* Sigma;
 
 void mcsk_pull_row()
 {
@@ -124,7 +127,7 @@ void enclave_svd()
 {
 	float** A = getmsk();
 	float** Q = (float**) malloc(MCSK_WIDTH * sizeof(float*));
-	float* Sigma = (float*) malloc(MCSK_WIDTH * sizeof(float));
+	Sigma = (float*) malloc(MCSK_WIDTH * sizeof(float));
 
 	for(size_t i = 0; i < MCSK_WIDTH; i++)
 	{
@@ -139,7 +142,68 @@ void enclave_svd()
 //	}
 //	free(Q);
 
-	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, Sigma, Q);
+	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, Sigma, Q);//Copy k columns of Q to A.
+
+	int k = MCSK_NUM_PC;
+	for (int i = 0; i < k; i++)
+	{
+		memcpy(A[i], Q[i], MCSK_WIDTH * sizeof(float));
+	}
+
+	// Compute matrix Q
+	for (int i = 0; i < MCSK_WIDTH; i++) {
+		Q[i][i] = 1.0;
+		for (int j = i + 1; j < MCSK_WIDTH; j++)
+		{
+			Q[i][j] = Q[j][i] = 0.0;
+		}
+	}
+	for (int pc = 0; pc < k; pc++)
+	{
+		for (int i = 0; i < MCSK_WIDTH; i++)
+		{
+			for (int j = 0; j < MCSK_WIDTH; j++)
+			{
+				Q[i][j] -= A[pc][i] * A[pc][j];
+			}
+		}
+	}
+
+	//writeA("matrixQ.out", Q, 2000, 2000);
+	for (int i = 0; i < MCSK_WIDTH >> 1; i++)
+	{
+		Sigma[i] = -1.0;
+	}
+
+	for (int i = MCSK_WIDTH >> 1; i < MCSK_WIDTH; i++)
+	{
+		Sigma[i] = 1.0;
+	}
+
+	// Compute Q * phenotype vector
+	matrix_vector_mult(Q, Sigma, A[k], MCSK_WIDTH, MCSK_WIDTH);
+	memcpy(Sigma, A[k], MCSK_WIDTH * sizeof(float));
+	for(size_t  i = 0 ; i < 2000; i++)
+	{
+		enclave_mcsk_buf[i] = Sigma[i];
+	}
+
+	//for (int i = 0; i < width; i++)
+	//	printf("%.4f\n", Sigma[i]);
+	//return 0;
+	
+	// Free allocated memories
+	for (int i = 0; i < MCSK_WIDTH; i++)
+	{
+		free(Q[i]);
+	}
+	free(Q);
+	mcsk_free();	
+	free(m_mcsk);
+
+	//start = clock() - start;
+	//time_taken = ((double)start)/CLOCKS_PER_SEC; // in seconds 
+	//printf("Compute SVD takes %f seconds.\n", time_taken);
 }
 
 sgx_status_t ecall_thread_cms(int thread_num)
@@ -760,6 +824,11 @@ void enclave_init_csk()
 	csk_init(CSK_WIDTH, CSK_DEPTH);
 }
 
+void enclave_init_csk_f()
+{
+	csk_init_f(CSK_WIDTH, CSK_DEPTH);
+}
+
 void enclave_decrypt_store_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
@@ -903,6 +972,51 @@ void enclave_decrypt_update_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 
 	// We've processed the data, now clear it
 	delete[] plaintext;
+}
+
+void enclave_decrypt_update_csk_f(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+	uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+	enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	// Get the meta information first
+	uint32_t patient_status = ((uint32_t*) plaintext) [0];
+	uint32_t num_het_start = ((uint32_t*) plaintext) [1];
+
+	// Update the CSK for every element
+	size_t i;
+	uint64_t rs_id_uint;
+	for(i = 2; i < num_het_start + 2; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
+		csk_update_var_f(rs_id_uint, ALLELE_HOMOZYGOUS * Sigma[file_idx]);
+
+	}
+
+	for(i = num_het_start + 2; i < num_elems; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
+		csk_update_var_f(rs_id_uint, ALLELE_HETEROZYGOUS * Sigma[file_idx]);
+
+	}
+
+	// We've processed the data, now clear it
+	delete[] plaintext;
+
+	file_idx = file_idx + 1;
 }
 
 void enclave_decrypt_query_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
@@ -1666,6 +1780,14 @@ void enclave_get_res_buf(uint32_t* res_buf)
 void enclave_get_mcsk_res(float* my_res)
 {
 	for(size_t i = 0; i < 2001; i++)
+	{
+		my_res[i] = enclave_mcsk_buf[i];
+	}
+}
+
+void enclave_get_mcsk_sigma(float* my_res)
+{
+	for(size_t i = 0; i < 2000; i++)
 	{
 		my_res[i] = enclave_mcsk_buf[i];
 	}
