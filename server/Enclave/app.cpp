@@ -46,6 +46,8 @@
 // TODO: Dynamically allocating and keeping track of this might be a good idea
 float enclave_mcsk_buf[2001];
 uint32_t enclave_res_buf[ENC_RES_BUF_LEN];
+float enclave_eig_buf[4000];
+float ortho_res[6];
 uint8_t* ptxt;
 uint8_t ptxt_len;
 uint32_t column_number = 0;
@@ -143,12 +145,24 @@ void enclave_svd()
 //	free(Q);
 
 	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, Sigma, Q);//Copy k columns of Q to A.
+	orthonormal_test(Q, MCSK_WIDTH, ortho_res);
 
 	int k = MCSK_NUM_PC;
 	for (int i = 0; i < k; i++)
 	{
 		memcpy(A[i], Q[i], MCSK_WIDTH * sizeof(float));
 	}
+
+	// DEBUG: Get the first and second eigenvectors
+	for(size_t  i = 0 ; i < 2000; i++)
+	{
+		enclave_eig_buf[i] = A[0][i];
+	}
+	for(size_t i = 2000; i < 4000; i++)
+	{
+		enclave_eig_buf[i] = A[1][i - 2000];
+	}
+		
 
 	// Compute matrix Q
 	for (int i = 0; i < MCSK_WIDTH; i++) {
@@ -1790,5 +1804,21 @@ void enclave_get_mcsk_sigma(float* my_res)
 	for(size_t i = 0; i < 2000; i++)
 	{
 		my_res[i] = enclave_mcsk_buf[i];
+	}
+}
+
+void enclave_get_eig_buf(float* my_res)
+{
+	for(size_t i = 0; i < 4000; i++)
+	{
+		my_res[i] = enclave_eig_buf[i];
+	}
+}
+
+void enclave_ortho(float* my_res)
+{
+	for(size_t i = 0; i < 6; i++)
+	{
+		my_res[i] = ortho_res[i];
 	}
 }

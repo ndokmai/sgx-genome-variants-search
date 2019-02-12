@@ -37,6 +37,8 @@ enclave
 		public void enclave_get_res_buf([out, size = 4000] uint32_t* res);
 		public void enclave_get_mcsk_res([out, size = 8004] float* my_res);
 		public void enclave_get_mcsk_sigma([out, size = 8000] float* my_res);
+		public void enclave_get_eig_buf([out, size = 16000] float* my_res);
+		public void enclave_ortho([out, size = 24] float* my_res);
 		public void mcsk_pull_row();
 
 		// Open-Addressing Hash-Table public ECALL interface

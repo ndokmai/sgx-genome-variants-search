@@ -16,4 +16,6 @@ uint32_t cal_hash(uint64_t x, uint64_t a, uint64_t b);
 float dot_prod(float* x, float *y, int n_);
 void matrix_vector_mult(float **mat, float *vec, float *result, int rows, int cols);
 
+void orthonormal_test(float** V, size_t size, float* res);
+
 #endif
