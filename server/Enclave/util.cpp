@@ -59,3 +59,19 @@ void matrix_vector_mult(float **mat, float *vec, float *result, int rows, int co
 	for (size_t i = 0; i < rows; i++)
 		result[i] = dot_prod(mat[i], vec, cols);
 }
+
+void orthonormal_test(float **V, size_t size) {
+	/* Test whether the row vectors are orthogonal. */
+	float dot12 = 0.0, dot13 = 0.0, dot23 = 0.0;
+	float norm1 = 0.0, norm2 = 0.0, norm3 = 0.0;
+	for (size_t i = 0; i < size; i++) {
+		dot12 += V[i][0] * V[i][1];
+		dot13 += V[i][0] * V[i][2];
+		dot23 += V[i][1] * V[i][2];
+		norm1 += V[i][0] * V[i][0];
+		norm2 += V[i][1] * V[i][1];
+		norm3 += V[i][2] * V[i][2];
+	}
+	printf("%.4f\t%.4f\t%.4f\n", dot12, dot13, dot23);
+	printf("%.4f\t%.4f\t%.4f\n", norm1, norm2, norm3);
+}
