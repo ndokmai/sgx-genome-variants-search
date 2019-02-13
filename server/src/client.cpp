@@ -1381,26 +1381,27 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 	enclave_svd(eid);
 
 	// DEBUG
-	float my_eig_res[4000];
-	enclave_get_eig_buf(eid, my_eig_res);
-	for(int i = 0; i < 2000; i++)
-	{
-		fprintf(stderr, "%f\t%f\n", my_eig_res[i], my_eig_res[i + 2000]);
-	}
-
-	float my_ortho_res[6];
-	enclave_ortho(eid, my_ortho_res);
-	for(int i = 0; i < 6; i++)
-	{
-		fprintf(stderr, "%f\n", my_ortho_res[i]);
-	}
-
-	// DEBUG
-//	enclave_get_mcsk_sigma(eid, my_res);
+//	float my_eig_res[4000];
+//	enclave_get_eig_buf(eid, my_eig_res);
 //	for(int i = 0; i < 2000; i++)
 //	{
-//		fprintf(stderr, "%f\n", my_res[i]);
+//		fprintf(stderr, "%f\t%f\n", my_eig_res[i], my_eig_res[i + 2000]);
 //	}
+
+//	float my_ortho_res[6];
+//	enclave_ortho(eid, my_ortho_res);
+//	for(int i = 0; i < 6; i++)
+//	{
+//		fprintf(stderr, "%f\n", my_ortho_res[i]);
+//	}
+
+	// DEBUG
+	float my_res[2000];
+	enclave_get_mcsk_sigma(eid, my_res);
+	for(int i = 0; i < 2000; i++)
+	{
+		fprintf(stderr, "%f\n", my_res[i]);
+	}
 
 	// Stop timer and report time for the first pass over the data
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;

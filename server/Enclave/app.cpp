@@ -65,6 +65,7 @@ void mcsk_pull_row()
 void enclave_init_mcsk()
 {
 	mcsk_init(MCSK_WIDTH, MCSK_NUM_PC, MCSK_EPS);
+	Sigma = (float*) malloc(MCSK_WIDTH * sizeof(float));
 }
 
 void enclave_decrypt_update_mcsk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
@@ -91,9 +92,11 @@ void enclave_decrypt_update_mcsk(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 
 	// Sign is +1 for case and -1 for control
 	int16_t sign = 1;
+	Sigma[column_number] = -1.0;
 	if(patient_status == 0)
 	{
 		sign = -1;
+		Sigma[column_number] = 1.0;
 	}
 
 	// Update the MCSK for every element
@@ -129,7 +132,7 @@ void enclave_svd()
 {
 	float** A = getmsk();
 	float** Q = (float**) malloc(MCSK_WIDTH * sizeof(float*));
-	Sigma = (float*) malloc(MCSK_WIDTH * sizeof(float));
+	float* S = (float*) malloc(MCSK_WIDTH * sizeof(float));
 
 	for(size_t i = 0; i < MCSK_WIDTH; i++)
 	{
@@ -144,8 +147,9 @@ void enclave_svd()
 //	}
 //	free(Q);
 
-	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, Sigma, Q);//Copy k columns of Q to A.
+	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, S, Q);//Copy k columns of Q to A.
 	orthonormal_test(Q, MCSK_WIDTH, ortho_res);
+	free(S);
 
 	int k = MCSK_NUM_PC;
 	for (int i = 0; i < k; i++)
@@ -154,14 +158,14 @@ void enclave_svd()
 	}
 
 	// DEBUG: Get the first and second eigenvectors
-	for(size_t  i = 0 ; i < 2000; i++)
-	{
-		enclave_eig_buf[i] = A[0][i];
-	}
-	for(size_t i = 2000; i < 4000; i++)
-	{
-		enclave_eig_buf[i] = A[1][i - 2000];
-	}
+//	for(size_t  i = 0 ; i < 2000; i++)
+//	{
+//		enclave_eig_buf[i] = A[0][i];
+//	}
+//	for(size_t i = 2000; i < 4000; i++)
+//	{
+//		enclave_eig_buf[i] = A[1][i - 2000];
+//	}
 		
 
 	// Compute matrix Q
@@ -184,15 +188,15 @@ void enclave_svd()
 	}
 
 	//writeA("matrixQ.out", Q, 2000, 2000);
-	for (int i = 0; i < MCSK_WIDTH >> 1; i++)
-	{
-		Sigma[i] = -1.0;
-	}
+//	for (int i = 0; i < MCSK_WIDTH >> 1; i++)
+//	{
+//		Sigma[i] = -1.0;
+//	}
 
-	for (int i = MCSK_WIDTH >> 1; i < MCSK_WIDTH; i++)
-	{
-		Sigma[i] = 1.0;
-	}
+//	for (int i = MCSK_WIDTH >> 1; i < MCSK_WIDTH; i++)
+//	{
+//		Sigma[i] = 1.0;
+//	}
 
 	// Compute Q * phenotype vector
 	matrix_vector_mult(Q, Sigma, A[k], MCSK_WIDTH, MCSK_WIDTH);
