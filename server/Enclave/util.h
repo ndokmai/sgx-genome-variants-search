@@ -3,6 +3,8 @@
 
 #include <inttypes.h>
 
+extern uint32_t mem_used;
+
 uint32_t my_sgx_rand();
 
 int cmpfunc_int16(const void* a, const void* b);

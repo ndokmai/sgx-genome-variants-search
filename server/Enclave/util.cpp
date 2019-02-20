@@ -2,6 +2,8 @@
 #include <sgx_trts.h>
 #include "util.h"
 
+uint32_t mem_used = 0;
+
 uint32_t my_sgx_rand()
 {
 	uint32_t rand_num;

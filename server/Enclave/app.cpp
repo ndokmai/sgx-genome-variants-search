@@ -28,11 +28,11 @@
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 23)
 
-#define CMS_WIDTH			(1 << 20)
+#define CMS_WIDTH			(1 << 18)
 #define	CMS_DEPTH			8
 
 #define	CSK_WIDTH			(1 << 20)
-#define	CSK_DEPTH			8
+#define	CSK_DEPTH			12
 
 #define MCSK_WIDTH			2000
 #define MCSK_NUM_PC			2
@@ -52,7 +52,7 @@ uint8_t* ptxt;
 uint8_t ptxt_len;
 uint32_t column_number = 0;
 uint32_t file_idx = 0;
-float* Sigma;
+float* phenotypes;
 
 void mcsk_pull_row()
 {
@@ -65,7 +65,7 @@ void mcsk_pull_row()
 void enclave_init_mcsk()
 {
 	mcsk_init(MCSK_WIDTH, MCSK_NUM_PC, MCSK_EPS);
-	Sigma = (float*) malloc(MCSK_WIDTH * sizeof(float));
+	phenotypes = (float*) malloc(MCSK_WIDTH * sizeof(float));
 }
 
 void enclave_decrypt_update_mcsk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
@@ -90,13 +90,11 @@ void enclave_decrypt_update_mcsk(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 	uint32_t patient_status = ((uint32_t*) plaintext) [0];
 	uint32_t num_het_start = ((uint32_t*) plaintext) [1];
 
-	// Sign is +1 for case and -1 for control
-	int16_t sign = 1;
-	Sigma[column_number] = -1.0;
+	// Set initial phenotype
+	phenotypes[column_number] = -1.0;
 	if(patient_status == 0)
 	{
-		sign = -1;
-		Sigma[column_number] = 1.0;
+		phenotypes[column_number] = 1.0;
 	}
 
 	// Update the MCSK for every element
@@ -106,14 +104,12 @@ void enclave_decrypt_update_mcsk(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 		mcsk_update_var(rs_id_uint, column_number, 2.0);
-
 	}
 
 	for(i = num_het_start + 2; i < num_elems; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 		mcsk_update_var(rs_id_uint, column_number, 1.0);
-
 	}
 
 	// We've processed the data, now clear it
@@ -139,17 +135,8 @@ void enclave_svd()
 		Q[i] = (float*) malloc(MCSK_WIDTH * sizeof(float));
 	}
 
-
-//	free(Sigma);
-//	for(size_t i = 0; i < MCSK_WIDTH; i++)
-//	{
-//		free(Q[i]);
-//	}
-//	free(Q);
-
-	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, S, Q);//Copy k columns of Q to A.
+	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, S, Q); //Copy k columns of Q to A.
 	orthonormal_test(Q, MCSK_WIDTH, ortho_res);
-	free(S);
 
 	int k = MCSK_NUM_PC;
 	for (int i = 0; i < k; i++)
@@ -169,7 +156,8 @@ void enclave_svd()
 		
 
 	// Compute matrix Q
-	for (int i = 0; i < MCSK_WIDTH; i++) {
+	for (int i = 0; i < MCSK_WIDTH; i++)
+	{
 		Q[i][i] = 1.0;
 		for (int j = i + 1; j < MCSK_WIDTH; j++)
 		{
@@ -187,28 +175,13 @@ void enclave_svd()
 		}
 	}
 
-	//writeA("matrixQ.out", Q, 2000, 2000);
-//	for (int i = 0; i < MCSK_WIDTH >> 1; i++)
-//	{
-//		Sigma[i] = -1.0;
-//	}
-
-//	for (int i = MCSK_WIDTH >> 1; i < MCSK_WIDTH; i++)
-//	{
-//		Sigma[i] = 1.0;
-//	}
-
 	// Compute Q * phenotype vector
-	matrix_vector_mult(Q, Sigma, A[k], MCSK_WIDTH, MCSK_WIDTH);
-	memcpy(Sigma, A[k], MCSK_WIDTH * sizeof(float));
+	matrix_vector_mult(Q, phenotypes, A[k], MCSK_WIDTH, MCSK_WIDTH);
+	memcpy(phenotypes, A[k], MCSK_WIDTH * sizeof(float));
 	for(size_t  i = 0 ; i < 2000; i++)
 	{
-		enclave_mcsk_buf[i] = Sigma[i];
+		enclave_mcsk_buf[i] = phenotypes[i];
 	}
-
-	//for (int i = 0; i < width; i++)
-	//	printf("%.4f\n", Sigma[i]);
-	//return 0;
 	
 	// Free allocated memories
 	for (int i = 0; i < MCSK_WIDTH; i++)
@@ -216,12 +189,9 @@ void enclave_svd()
 		free(Q[i]);
 	}
 	free(Q);
+	free(S);
 	mcsk_free();	
 	free(m_mcsk);
-
-	//start = clock() - start;
-	//time_taken = ((double)start)/CLOCKS_PER_SEC; // in seconds 
-	//printf("Compute SVD takes %f seconds.\n", time_taken);
 }
 
 sgx_status_t ecall_thread_cms(int thread_num)
@@ -978,14 +948,12 @@ void enclave_decrypt_update_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 		csk_update_var(rs_id_uint, ALLELE_HOMOZYGOUS * sign);
-
 	}
 
 	for(i = num_het_start + 2; i < num_elems; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 		csk_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
-
 	}
 
 	// We've processed the data, now clear it
@@ -1020,15 +988,13 @@ void enclave_decrypt_update_csk_f(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 	for(i = 2; i < num_het_start + 2; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
-		csk_update_var_f(rs_id_uint, ALLELE_HOMOZYGOUS * Sigma[file_idx]);
-
+		csk_update_var_f(rs_id_uint, ALLELE_HOMOZYGOUS * phenotypes[file_idx]);
 	}
 
 	for(i = num_het_start + 2; i < num_elems; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
-		csk_update_var_f(rs_id_uint, ALLELE_HETEROZYGOUS * Sigma[file_idx]);
-
+		csk_update_var_f(rs_id_uint, ALLELE_HETEROZYGOUS * phenotypes[file_idx]);
 	}
 
 	// We've processed the data, now clear it
@@ -1038,6 +1004,77 @@ void enclave_decrypt_update_csk_f(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 }
 
 void enclave_decrypt_query_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+	uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+	enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	// Get the CSK depth
+	uint32_t csk_depth = m_csk->depth;
+
+	// Query the CSK for every element
+	if(csk_depth % 2 == 0)
+	{
+		// CSK depth is even
+		size_t i;
+		int16_t est_diff;
+		uint64_t rs_id_uint;
+
+		for(i = 0; i < num_elems; i++)
+		{
+			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
+			est_diff = csk_query_median_even(rs_id_uint);
+			if(est_diff < 0)
+			{
+				est_diff = est_diff * -1;
+			}
+
+			// Try to insert the element into the min heap
+			// Updated if already in
+			// If the heap is full, inserted if its absolute difference is larger than the root
+			mh_insert(rs_id_uint, est_diff);
+		}
+	}
+	else
+	{
+		// CSK depth is odd
+		size_t i;
+		int16_t est_diff;
+		uint64_t rs_id_uint;
+
+		for(i = 0; i < num_elems; i++)
+		{
+			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
+			est_diff = csk_query_median_odd(rs_id_uint);
+			if(est_diff < 0)
+			{
+				est_diff = est_diff * -1;
+			}
+
+			// Try to insert the element into the min heap
+			// Updated if already in
+			// If the heap is full, inserted if its absolute difference is larger than the root
+			mh_insert(rs_id_uint, est_diff);
+		}
+	}
+
+	// We've processed the data, now clear it
+	delete[] plaintext;
+}
+
+void enclave_decrypt_query_csk_f(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
 	uint8_t sk[16];
@@ -1825,4 +1862,9 @@ void enclave_ortho(float* my_res)
 	{
 		my_res[i] = ortho_res[i];
 	}
+}
+
+void enclave_get_mem_used(uint32_t* mem_usage)
+{
+	mem_usage[0] = mem_used;
 }

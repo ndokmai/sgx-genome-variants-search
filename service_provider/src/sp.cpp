@@ -259,7 +259,7 @@ void app(MsgIO* msgio)
 	delete[] num_elems_buf;
 */
 
-fprintf(stderr, "\n");
+//fprintf(stderr, "\n");
 
 	// THIRD PASS
 	// Now, read and process the files in random order
@@ -335,6 +335,74 @@ fprintf(stderr, "\n");
 			delete[] num_elems_buf;
 		}
 	}
+
+	// Last pass, only send a single file with the unique SNP IDs
+	FILE* uniq_snps = fopen("/home/ckockan/data-sgx-misc/chr1_uniq.ckz0", "rb");
+	//FILE* uniq_snps = fopen("/home/ckockan/data-sgx-misc/all_uniq.ckz0", "rb");
+	if(uniq_snps == NULL)
+	{
+		fprintf(stderr, "Error opening file\n");
+	}
+
+	// Move the file pointer to the end of the file
+	fseek(uniq_snps, 0, SEEK_END);
+
+	// Get the size of the file (in bytes)
+	uint32_t file_size = (uint32_t) ftell(uniq_snps);
+	//fprintf(stderr, "\tSize of file: %d bytes.\n", file_size);
+
+	// Move the file pointer back to the beginning of the file
+	rewind(uniq_snps);
+
+	// Each element in the file should be a 32-bit unsigned integer
+	// Therefore we can calculate the total number of elements to be sent for the file
+	uint32_t num_elems = file_size / sizeof(uint32_t);
+
+	// Allocate memory for the file contents
+	uint32_t* contents = (uint32_t*) malloc(sizeof(uint32_t) * num_elems);
+	if(contents == NULL)
+	{
+		fprintf(stderr, "Error: malloc() failed ...\n");
+	}
+			
+	// Read the file contents
+	uint32_t elems_read = fread(contents, sizeof(uint32_t), num_elems, uniq_snps);
+	if(elems_read != num_elems)
+	{
+		fprintf(stderr, "Error: elems_read (%d) != num_elems (%d) ...\n", elems_read, num_elems);
+	}
+
+	// First send the file size
+	auto num_elems_buf = new uint32_t[1];
+	num_elems_buf[0] = num_elems;
+	msgio->send_bin(num_elems_buf, sizeof(uint32_t));
+
+	// Now send the actual file contents
+	uint32_t num_elems_rem = num_elems;
+	uint32_t num_elems_sent = 0;
+	while(num_elems_sent != num_elems)
+	{
+		uint32_t to_send_elems = 0;
+		if(num_elems_rem < chunk_size)
+		{	
+			to_send_elems = num_elems_rem;
+		}
+		else
+		{
+			to_send_elems = chunk_size;
+		}
+		msgio->send_bin_encrypted(contents + num_elems_sent, to_send_elems * sizeof(uint32_t));
+		num_elems_sent = num_elems_sent + to_send_elems;
+		num_elems_rem = num_elems_rem - to_send_elems;
+	}
+
+	// Close file
+	fclose(uniq_snps);
+
+	// Free memory
+	free(contents);
+	delete[] num_elems_buf;
+
 	return 0;
 }
 

@@ -10,7 +10,8 @@ struct mcsk* m_mcsk = NULL;
 void mcsk_init_seeds()
 {
 	m_mcsk->seeds = (uint64_t*) malloc(4 * sizeof(uint64_t));
-	for (size_t i = 0; i < 2; i++) {
+	for(size_t i = 0; i < 2; i++)
+	{
 		m_mcsk->seeds[(i << 1)] = my_sgx_rand();
 		while (m_mcsk->seeds[(i << 1)] == 0)
 		{
@@ -33,10 +34,12 @@ void mcsk_init(uint32_t width, uint32_t num_pc, float eps)
 	m_mcsk->depth_minus_one = depth - 1;
 
 	m_mcsk->msketchf = (float**) malloc(depth * sizeof(float*));
-	for (size_t i = 0; i < depth; i++) 
+
+	for(size_t i = 0; i < depth; i++)
 	{
 		// Last column: for storing the row mean
 		m_mcsk->msketchf[i] = (float*) malloc((width + 1) * sizeof(float));
+
 		// Non-standard way of initialization
 		// Proper way is to set each entry 0.0 separately
 		memset(m_mcsk->msketchf[i], 0, (width + 1) * sizeof(float));
