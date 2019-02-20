@@ -1517,6 +1517,16 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 	// Stop timer and report time for the second pass over the data
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
 	fprintf(stderr, "Third Pass (CSK) took: %lf seconds\n", duration);
+
+	// DEBUG
+	uint32_t my_ids[1000];
+	float my_counts[1000];
+	enclave_get_id_buf(eid, my_ids);
+	enclave_get_countf_buf(eid, my_counts);
+	for(int i = 0; i < 1000; i++)
+	{
+		fprintf(stderr, "%lu\t%f\n", (unsigned long) my_ids[i], my_counts[i]);
+	}
 }
 
 int main(int argc, char** argv)

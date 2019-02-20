@@ -32,7 +32,7 @@
 #define	CMS_DEPTH			8
 
 #define	CSK_WIDTH			(1 << 20)
-#define	CSK_DEPTH			12
+#define	CSK_DEPTH			13
 
 #define MCSK_WIDTH			2000
 #define MCSK_NUM_PC			2
@@ -53,6 +53,8 @@ uint8_t ptxt_len;
 uint32_t column_number = 0;
 uint32_t file_idx = 0;
 float* phenotypes;
+uint32_t enc_id_buf[ENC_RES_BUF_LEN];
+float enc_countf_buf[ENC_RES_BUF_LEN];
 
 void mcsk_pull_row()
 {
@@ -1100,17 +1102,18 @@ void enclave_decrypt_query_csk_f(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 	{
 		// CSK depth is even
 		size_t i;
-		int16_t est_diff;
+		float est_diff;
 		uint64_t rs_id_uint;
 
 		for(i = 0; i < num_elems; i++)
 		{
 			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
-			est_diff = csk_query_median_even(rs_id_uint);
-			if(est_diff < 0)
-			{
-				est_diff = est_diff * -1;
-			}
+			// TODO: add the even version
+			est_diff = csk_query_median_odd_f(rs_id_uint);
+//			if(est_diff < 0)
+//			{
+//				est_diff = est_diff * -1;
+//			}
 
 			// Try to insert the element into the min heap
 			// Updated if already in
@@ -1122,22 +1125,28 @@ void enclave_decrypt_query_csk_f(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 	{
 		// CSK depth is odd
 		size_t i;
-		int16_t est_diff;
+		float est_diff;
 		uint64_t rs_id_uint;
 
 		for(i = 0; i < num_elems; i++)
 		{
 			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
-			est_diff = csk_query_median_odd(rs_id_uint);
-			if(est_diff < 0)
-			{
-				est_diff = est_diff * -1;
-			}
+			est_diff = csk_query_median_odd_f(rs_id_uint);
+//			if(est_diff < 0)
+//			{
+//				est_diff = est_diff * -1;
+//			}
 
 			// Try to insert the element into the min heap
 			// Updated if already in
 			// If the heap is full, inserted if its absolute difference is larger than the root
-			mh_insert(rs_id_uint, est_diff);
+			enc_id_buf[i] = rs_id_uint;
+			enc_countf_buf[i] = est_diff;
+//			mh_insert(rs_id_uint, est_diff);
+			if(i == 1000)
+			{
+				break;
+			}
 		}
 	}
 
@@ -1867,4 +1876,20 @@ void enclave_ortho(float* my_res)
 void enclave_get_mem_used(uint32_t* mem_usage)
 {
 	mem_usage[0] = mem_used;
+}
+
+void enclave_get_id_buf(uint32_t* id)
+{
+	for(size_t i = 0; i < 1000; i++)
+	{
+		id[i] = enc_id_buf[i];
+	}
+}
+
+void enclave_get_countf_buf(float* countf)
+{
+	for(size_t i = 0; i < 1000; i++)
+	{
+		countf[i] = enc_countf_buf[i];
+	}
 }

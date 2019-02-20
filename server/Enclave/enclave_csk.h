@@ -32,5 +32,6 @@ void csk_update_var(uint64_t, int16_t);
 void csk_update_var_f(uint64_t, float);
 int16_t csk_query_median_odd(uint64_t item);
 int16_t csk_query_median_even(uint64_t item);
+float csk_query_median_odd_f(uint64_t item);
 
 #endif

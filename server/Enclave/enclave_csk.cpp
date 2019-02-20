@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sgx_trts.h>
 #include "enclave_csk.h"
+#include "util.h"
 
 struct csk* m_csk = NULL;
 
@@ -249,3 +250,78 @@ int16_t csk_query_median_even(uint64_t item)
 
 	return median;
 }
+
+float csk_query_median_odd_f(uint64_t item)
+{
+	float* values;
+	float median;
+	uint32_t hash;
+	uint32_t pos;
+	int sign;
+
+	values = (float*) malloc(m_csk->depth * sizeof(float));
+
+	for(size_t i = 0; i < m_csk->depth; i++)
+	{
+		hash = csk_cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+		pos = hash & m_csk->width_minus_one;
+		hash = cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
+		sign = ((hash & 0x1) == 0) ? -1 : 1;
+		values[i] = m_csk->sketchf[i][pos] * sign;
+	}
+
+	// Sort values
+	qsort(values, m_csk->depth, sizeof(float), cmpfunc_float);
+
+	// Get median of values
+	median = values[m_csk->depth / 2];
+
+	// Free memory
+	free(values);
+
+	return median;
+}
+
+/*
+float csk_query_median_even_f(uint64_t item)
+{
+	float* values;
+	float median;
+	uint32_t hash;
+	uint32_t pos;
+	int sign;
+
+	values = (float*) malloc(m_csk->depth * sizeof(float));
+
+	for(size_t i = 0; i < m_csk->depth; i++)
+	{
+		hash = cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+		pos = hash & m_csk->width_minus_one;
+		hash = cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
+		sign = ((hash & 0x1) == 0) ? -1 : 1;
+		values[i] = m_csk->sketch32[i][pos] * sign;
+	}
+
+	// Sort values
+	qsort(values, m_csk->depth, sizeof(float), cmpfunc_float);
+
+	// Get median of values
+	if(values[m_csk->depth / 2] + s_thres < 0.0)
+	{
+		median = values[m_csk->depth / 2 - 1];
+	}
+	else if(values[m_csk->depth / 2 - 1] - s_thres > 0.0)
+	{
+		median = values[m_csk->depth / 2];
+	}
+	else
+	{
+		median = (values[m_csk->depth / 2 - 1] + values[m_csk->depth / 2]) / 2;
+	}
+
+	// Free memory
+	free(values);
+
+	return median;
+}
+*/
