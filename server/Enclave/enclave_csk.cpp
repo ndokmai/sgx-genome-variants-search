@@ -105,7 +105,7 @@ void csk_update_var(uint64_t item, int16_t count)
 {
 	uint32_t hash;
 	uint32_t pos;
-	uint16_t count_;
+	int16_t count_;
 
 	for(size_t i = 0; i < m_csk->depth; i++)
 	{
@@ -148,6 +148,50 @@ void csk_update_var_f(uint64_t item, float count)
 		}
 	}
 }
+
+/***** Test function *****/
+void cms_update_var_row(uint64_t item, int16_t count, size_t row)
+{
+	uint32_t hash;
+	uint32_t pos;
+
+	hash = cal_hash(item, m_csk->seeds[row << 1], m_csk->seeds[(row << 1) + 1]);
+	pos = hash & m_csk->width_minus_one;
+	hash = cal_hash(item, m_csk->seeds[(row + m_csk->depth) << 1], m_csk->seeds[((row + m_csk->depth) << 1) + 1]);
+	int16_t count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
+
+	if(m_csk->sketch[row][pos] >= HASH_MAX_16 && count_ > 0)
+	{
+		return;
+	}
+
+	if(m_csk->sketch[row][pos] <= HASH_MIN_16 && count_ < 0)
+	{
+		return;
+	}
+
+	m_csk->sketch[row][pos] = m_csk->sketch[row][pos] + count_;
+}
+
+void cms_update_var_row_f(uint64_t item, float count, size_t row)
+{
+	uint32_t hash;
+	uint32_t pos;
+
+	hash = cal_hash(item, m_csk->seeds[row << 1], m_csk->seeds[(row << 1) + 1]);
+	pos = hash & m_csk->width_minus_one;
+	hash = cal_hash(item, m_csk->seeds[(row + m_csk->depth) << 1], m_csk->seeds[((row + m_csk->depth) << 1) + 1]);
+
+	if((hash & 0x1) == 0)
+	{
+		m_csk->sketchf[row][pos] = m_csk->sketchf[row][pos] - count;
+	}
+	else
+	{
+		m_csk->sketchf[row][pos] = m_csk->sketchf[row][pos] + count;
+	}
+}
+/***** END: Test function *****/
 
 int16_t csk_query_median_odd(uint64_t item)
 {
