@@ -6,27 +6,20 @@
 
 struct cms* m_cms = NULL;
 
-void cms_init(uint32_t width, uint32_t depth)
+void cms_init_param()
 {
-	m_cms = (cms*) malloc(sizeof(cms));
-
+	m_cms = (csk*) malloc(sizeof(csk));
 	m_cms->width = width;
 	m_cms->depth = depth;
 	m_cms->width_minus_one = width - 1;
+	m_cms->seeds = NULL;
 	m_cms->st_length = 0;
+	m_cms->s_thres = 200;
+}
 
-	m_cms->sketch = (int16_t**) malloc(depth * sizeof(int16_t*));
-
-	for(size_t i = 0; i < depth; i++)
-	{
-		m_cms->sketch[i] = (int16_t*) malloc(width * sizeof(int16_t));
-		memset(m_cms->sketch[i], 0, width * sizeof(int16_t));
-	}
-
+void cms_init_seeds()
+{
 	m_cms->seeds = (uint64_t*) malloc(depth * sizeof(uint64_t) << 1);
-
-	//time_t t;
-	//srand((unsigned) time(&t));
 
 	for(size_t i = 0; i < depth; i++)
 	{
@@ -37,6 +30,22 @@ void cms_init(uint32_t width, uint32_t depth)
 		}
 		m_cms->seeds[(i << 1) + 1] = my_sgx_rand();
 	}
+}
+
+void cms_init(uint32_t width, uint32_t depth)
+{
+	cms_init_param();
+	
+	m_cms->sketch = (int16_t**) malloc(depth * sizeof(int16_t*));
+	m_cms->sketchf = NULL;
+
+	for(size_t i = 0; i < depth; i++)
+	{
+		m_cms->sketch[i] = (int16_t*) malloc(width * sizeof(int16_t));
+		memset(m_cms->sketch[i], 0, width * sizeof(int16_t));
+	}
+
+	cms_init_seeds();
 }
 
 void cms_update_var(uint64_t item, int16_t count)
