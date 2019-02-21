@@ -254,14 +254,13 @@ float csk_query_median_odd_f(uint64_t item)
 	return median;
 }
 
-/*
 float csk_query_median_even_f(uint64_t item)
 {
 	float* values;
 	float median;
 	uint32_t hash;
 	uint32_t pos;
-	int sign;
+	//int sign;
 
 	values = (float*) malloc(m_csk->depth * sizeof(float));
 
@@ -270,8 +269,16 @@ float csk_query_median_even_f(uint64_t item)
 		hash = cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
 		pos = hash & m_csk->width_minus_one;
 		hash = cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
-		sign = ((hash & 0x1) == 0) ? -1 : 1;
-		values[i] = m_csk->sketch32[i][pos] * sign;
+		//sign = ((hash & 0x1) == 0) ? -1 : 1;
+		//values[i] = m_csk->sketch32[i][pos] * sign;
+		if((hash & 0x1) == 0)
+		{
+			values[i] = -m_csk->sketchf[i][pos];
+		}
+		else
+		{
+			values[i] = m_csk->sketchf[i][pos];
+		}
 	}
 
 	// Sort values
@@ -296,4 +303,3 @@ float csk_query_median_even_f(uint64_t item)
 
 	return median;
 }
-*/
