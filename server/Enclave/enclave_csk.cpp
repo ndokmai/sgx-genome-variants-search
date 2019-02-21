@@ -14,6 +14,7 @@ void csk_init(uint32_t width, uint32_t depth)
 	m_csk->depth = depth;
 	m_csk->width_minus_one = width - 1;
 	m_csk->seeds = NULL;
+	m_csk->s_thres = 200;
 
 	m_csk->sketch = (int16_t**) malloc(depth * sizeof(int16_t*));
 	m_csk->sketchf = NULL;
@@ -45,6 +46,7 @@ void csk_init_f(uint32_t width, uint32_t depth)
 	m_csk->depth = depth;
 	m_csk->width_minus_one = width - 1;
 	m_csk->seeds = NULL;
+	m_csk->s_thres = 200;
 
 	m_csk->sketch = NULL;
 	m_csk->sketchf = (float**) malloc(depth * sizeof(float*));
@@ -92,6 +94,11 @@ void csk_free()
 		}
 		free(m_csk->sketchf);
 	}
+}
+
+void csk_setsth(int new_threshold)
+{
+	m_csk->s_thres = new_threshold;
 }
 
 void csk_update_var(uint64_t item, int16_t count)
@@ -196,11 +203,11 @@ int16_t csk_query_median_even(uint64_t item)
 	qsort(values, m_csk->depth, sizeof(int16_t), cmpfunc_int16);
 
 	// Get median of values
-	if(values[m_csk->depth / 2] < -100)
+	if(values[m_csk->depth / 2] < -s_thres)
 	{
 		median = values[m_csk->depth / 2 - 1];
 	}
-	else if(values[m_csk->depth / 2 - 1] > 100)
+	else if(values[m_csk->depth / 2 - 1] > s_thres)
 	{
 		median = values[m_csk->depth / 2];
 	}
