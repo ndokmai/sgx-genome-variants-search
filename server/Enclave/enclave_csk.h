@@ -3,8 +3,8 @@
 
 #include "inttypes.h"
 
-#define HASH_MAX	32765
-#define HASH_MIN	-32765
+#define HASH_MAX_16	32765
+#define HASH_MIN_16	-32765
 
 extern struct csk* m_csk;
 
@@ -20,11 +20,8 @@ typedef struct csk
 
 	// For custom hash functions
 	uint64_t* seeds;
-	//int16_t* custom_signs;
-	//uint32_t shift;
 } csk;
 
-uint32_t csk_cal_hash(uint64_t, uint64_t, uint64_t);
 void csk_init(uint32_t, uint32_t);
 void csk_init_f(uint32_t, uint32_t);
 void csk_free();
@@ -33,5 +30,6 @@ void csk_update_var_f(uint64_t, float);
 int16_t csk_query_median_odd(uint64_t item);
 int16_t csk_query_median_even(uint64_t item);
 float csk_query_median_odd_f(uint64_t item);
+float csk_query_median_even_f(uint64_t item);
 
 #endif
