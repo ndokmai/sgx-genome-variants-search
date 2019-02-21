@@ -6,32 +6,6 @@
 
 struct csk* m_csk = NULL;
 
-uint32_t my_sgx_rand_csk()
-{
-	uint32_t rand_num;
-	sgx_read_rand((unsigned char*) &rand_num, sizeof(uint32_t));
-	return rand_num & 0x7FFFFFFF;
-}
-
-int csk_cmpfunc_int16(const void* a, const void* b)
-{
-	return (*(int16_t*) a - *(int16_t*) b);
-}
-
-// Hash function: h(x) = (a * x + b) mod p, where p = 2 ^ 31 - 1
-uint32_t csk_cal_hash(uint64_t x, uint64_t a, uint64_t b)
-{
-	uint64_t result = a * x + b;
-	result = (result & 0x7FFFFFFF) + (result >> 31);
-
-	if(result >= 0x7FFFFFFF)
-	{
-		return (uint32_t) (result - 0x7FFFFFFF);
-	}
-
-	return (uint32_t) result;
-}
-
 void csk_init(uint32_t width, uint32_t depth)
 {
 	m_csk = (csk*) malloc(sizeof(csk));
