@@ -48,6 +48,21 @@ void cms_init(uint32_t width, uint32_t depth)
 	cms_init_seeds();
 }
 
+void cms_init_f(uint32_t width, uint32_t depth)
+{
+	cms_init_param();
+	
+	m_cms->sketch = NULL;
+	m_cms->sketchf = (float**) malloc(depth * sizeof(float*));
+	for(size_t i = 0; i < depth; i++)
+	{
+		m_cms->sketchf[i] = (float*) malloc(width * sizeof(float));
+		memset(m_cms->sketchf[i], 0, width * sizeof(float));
+	}
+
+	cms_init_seeds();
+}
+
 void cms_update_var(uint64_t item, int16_t count)
 {
 	uint32_t hash;
