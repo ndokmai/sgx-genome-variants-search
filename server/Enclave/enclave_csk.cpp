@@ -28,12 +28,12 @@ void csk_init(uint32_t width, uint32_t depth)
 
 	for(size_t i = 0; i < depth << 1; i++)
 	{
-		m_csk->seeds[(i << 1)] = my_sgx_rand_csk();
+		m_csk->seeds[(i << 1)] = my_sgx_rand();
 		while(m_csk->seeds[(i << 1)] == 0)
 		{
-			m_csk->seeds[(i << 1)] = my_sgx_rand_csk();
+			m_csk->seeds[(i << 1)] = my_sgx_rand();
 		}
-		m_csk->seeds[(i << 1) + 1] = my_sgx_rand_csk();
+		m_csk->seeds[(i << 1) + 1] = my_sgx_rand();
 	}
 }
 
@@ -59,12 +59,12 @@ void csk_init_f(uint32_t width, uint32_t depth)
 
 	for(size_t i = 0; i < depth << 1; i++)
 	{
-		m_csk->seeds[(i << 1)] = my_sgx_rand_csk();
+		m_csk->seeds[(i << 1)] = my_sgx_rand();
 		while(m_csk->seeds[(i << 1)] == 0)
 		{
-			m_csk->seeds[(i << 1)] = my_sgx_rand_csk();
+			m_csk->seeds[(i << 1)] = my_sgx_rand();
 		}
-		m_csk->seeds[(i << 1) + 1] = my_sgx_rand_csk();
+		m_csk->seeds[(i << 1) + 1] = my_sgx_rand();
 	}
 }
 
@@ -97,28 +97,25 @@ void csk_free()
 void csk_update_var(uint64_t item, int16_t count)
 {
 	uint32_t hash;
-	//int32_t sign;
 	uint32_t pos;
 	uint16_t count_;
 
 	for(size_t i = 0; i < m_csk->depth; i++)
 	{
-		hash = csk_cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+		hash = cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
 		pos = hash & m_csk->width_minus_one;
 
-		hash = csk_cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
+		hash = cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
 		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
 
-		/*
-		if(m_csk->sketch[i][pos] >= HASH_MAX && count_ > 0)
+		if(m_csk->sketch[i][pos] >= HASH_MAX_16 && count_ > 0)
 		{
 			continue;
 		}
-		if(m_csk->sketch[i][pos] <= HASH_MIN && count_ < 0)
+		if(m_csk->sketch[i][pos] <= HASH_MIN_16 && count_ < 0)
 		{
 			continue;
 		}
-		*/
 		m_csk->sketch[i][pos] = m_csk->sketch[i][pos] + count_;
 	}
 }
@@ -126,29 +123,22 @@ void csk_update_var(uint64_t item, int16_t count)
 void csk_update_var_f(uint64_t item, float count)
 {
 	uint32_t hash;
-	//int32_t sign;
 	uint32_t pos;
-	float count_;
 
 	for(size_t i = 0; i < m_csk->depth; i++)
 	{
-		hash = csk_cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+		hash = cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
 		pos = hash & m_csk->width_minus_one;
 
-		hash = csk_cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
-		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
-
-		/*
-		if(m_csk->sketch[i][pos] >= HASH_MAX && count_ > 0)
+		hash = cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
+		if((hash & 0x1) == 0)
 		{
-			continue;
+			m_csk->sketchf[i][pos] = m_csk->sketchf[i][pos] - count;
 		}
-		if(m_csk->sketch[i][pos] <= HASH_MIN && count_ < 0)
+		else
 		{
-			continue;
+			m_csk->sketchf[i][pos] = m_csk->sketchf[i][pos] + count;
 		}
-		*/
-		m_csk->sketchf[i][pos] = m_csk->sketchf[i][pos] + count_;
 	}
 }
 
@@ -164,15 +154,15 @@ int16_t csk_query_median_odd(uint64_t item)
 
 	for(size_t i = 0; i < m_csk->depth; i++)
 	{
-		hash = csk_cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+		hash = cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
 		pos = hash & m_csk->width_minus_one;
-		hash = csk_cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
+		hash = cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
 		sign = ((hash & 0x1) == 0) ? -1 : 1;
 		values[i] = m_csk->sketch[i][pos] * sign;
 	}
 
 	// Sort values
-	qsort(values, m_csk->depth, sizeof(int16_t), csk_cmpfunc_int16);
+	qsort(values, m_csk->depth, sizeof(int16_t), cmpfunc_int16);
 
 	// Get median of values
 	median = values[m_csk->depth / 2];
@@ -195,15 +185,15 @@ int16_t csk_query_median_even(uint64_t item)
 
 	for(size_t i = 0; i < m_csk->depth; i++)
 	{
-		hash = csk_cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+		hash = cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
 		pos = hash & m_csk->width_minus_one;
-		hash = csk_cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
+		hash = cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
 		sign = ((hash & 0x1) == 0) ? -1 : 1;
 		values[i] = m_csk->sketch[i][pos] * sign;
 	}
 
 	// Sort values
-	qsort(values, m_csk->depth, sizeof(int16_t), csk_cmpfunc_int16);
+	qsort(values, m_csk->depth, sizeof(int16_t), cmpfunc_int16);
 
 	// Get median of values
 	if(values[m_csk->depth / 2] < -100)
@@ -231,17 +221,25 @@ float csk_query_median_odd_f(uint64_t item)
 	float median;
 	uint32_t hash;
 	uint32_t pos;
-	int sign;
+	//int sign;
 
 	values = (float*) malloc(m_csk->depth * sizeof(float));
 
 	for(size_t i = 0; i < m_csk->depth; i++)
 	{
-		hash = csk_cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+		hash = cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
 		pos = hash & m_csk->width_minus_one;
 		hash = cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
-		sign = ((hash & 0x1) == 0) ? -1 : 1;
-		values[i] = m_csk->sketchf[i][pos] * sign;
+		//sign = ((hash & 0x1) == 0) ? -1 : 1;
+		if((hash & 0x1) == 0)
+		{
+			values[i] = -m_csk->sketchf[i][pos];
+		}
+		else
+		{
+			values[i] = m_csk->sketchf[i][pos];
+		}
+		//values[i] = m_csk->sketchf[i][pos] * sign;
 	}
 
 	// Sort values
