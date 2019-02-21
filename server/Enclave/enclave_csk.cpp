@@ -6,25 +6,18 @@
 
 struct csk* m_csk = NULL;
 
-void csk_init(uint32_t width, uint32_t depth)
+void csk_init_param()
 {
 	m_csk = (csk*) malloc(sizeof(csk));
-
 	m_csk->width = width;
 	m_csk->depth = depth;
 	m_csk->width_minus_one = width - 1;
 	m_csk->seeds = NULL;
 	m_csk->s_thres = 200;
+}
 
-	m_csk->sketch = (int16_t**) malloc(depth * sizeof(int16_t*));
-	m_csk->sketchf = NULL;
-
-	for(size_t i = 0; i < depth; i++)
-	{
-		m_csk->sketch[i] = (int16_t*) malloc(width * sizeof(int16_t));
-		memset(m_csk->sketch[i], 0, width * sizeof(int16_t));
-	}
-
+void csk_init_seeds()
+{
 	m_csk->seeds = (uint64_t*) malloc(depth * sizeof(uint64_t) << 2);
 
 	for(size_t i = 0; i < depth << 1; i++)
@@ -38,36 +31,34 @@ void csk_init(uint32_t width, uint32_t depth)
 	}
 }
 
+void csk_init(uint32_t width, uint32_t depth)
+{
+	csk_init_param();
+	
+	m_csk->sketch = (int16_t**) malloc(depth * sizeof(int16_t*));
+	m_csk->sketchf = NULL;
+	for(size_t i = 0; i < depth; i++)
+	{
+		m_csk->sketch[i] = (int16_t*) malloc(width * sizeof(int16_t));
+		memset(m_csk->sketch[i], 0, width * sizeof(int16_t));
+	}
+
+	csk_init_seeds();
+}
+
 void csk_init_f(uint32_t width, uint32_t depth)
 {
-	m_csk = (csk*) malloc(sizeof(csk));
-
-	m_csk->width = width;
-	m_csk->depth = depth;
-	m_csk->width_minus_one = width - 1;
-	m_csk->seeds = NULL;
-	m_csk->s_thres = 200;
-
+	csk_init_param();
+	
 	m_csk->sketch = NULL;
 	m_csk->sketchf = (float**) malloc(depth * sizeof(float*));
-
 	for(size_t i = 0; i < depth; i++)
 	{
 		m_csk->sketchf[i] = (float*) malloc(width * sizeof(float));
 		memset(m_csk->sketchf[i], 0, width * sizeof(float));
 	}
 
-	m_csk->seeds = (uint64_t*) malloc(depth * sizeof(uint64_t) << 2);
-
-	for(size_t i = 0; i < depth << 1; i++)
-	{
-		m_csk->seeds[(i << 1)] = my_sgx_rand();
-		while(m_csk->seeds[(i << 1)] == 0)
-		{
-			m_csk->seeds[(i << 1)] = my_sgx_rand();
-		}
-		m_csk->seeds[(i << 1) + 1] = my_sgx_rand();
-	}
+	csk_init_seeds();
 }
 
 void csk_free()
