@@ -15,6 +15,7 @@ typedef struct csk
 	uint32_t depth;				// Number of Pairwise Independent Hash Functions
 	float delta;				// Error Probability
 	float epsilon;				// Error Factor
+	int s_thres;			// For sketch querying when the depth is even
 	int16_t** sketch;
 	float** sketchf;
 
