@@ -3,6 +3,9 @@
 
 #include <inttypes.h>
 
+#define HASH_MAX_16	32765
+#define HASH_MIN_16	-32765
+
 extern uint32_t mem_used;
 
 uint32_t my_sgx_rand();
