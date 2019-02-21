@@ -3,9 +3,6 @@
 
 #include "inttypes.h"
 
-#define HASH_MAX_16	32765
-#define HASH_MIN_16	-32765
-
 extern struct csk* m_csk;
 
 typedef struct csk
