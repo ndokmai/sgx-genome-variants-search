@@ -19,9 +19,10 @@ void cms_init_param(uint32_t width, uint32_t depth)
 
 void cms_init_seeds()
 {
-	m_cms->seeds = (uint64_t*) malloc(m_cms->depth * sizeof(uint64_t) << 1);
+	uint32_t d = m_cms->depth;
+	m_cms->seeds = (uint64_t*) malloc(d * sizeof(uint64_t) << 1);
 
-	for(size_t i = 0; i < m_cms->depth; i++)
+	for(size_t i = 0; i < d; i++)
 	{
 		m_cms->seeds[(i << 1)] = my_sgx_rand();
 		while(m_cms->seeds[(i << 1)] == 0)
