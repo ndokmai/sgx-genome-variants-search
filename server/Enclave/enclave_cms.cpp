@@ -37,27 +37,10 @@ void cms_init(uint32_t width, uint32_t depth)
 	cms_init_param();
 	
 	m_cms->sketch = (int16_t**) malloc(depth * sizeof(int16_t*));
-	m_cms->sketchf = NULL;
-
 	for(size_t i = 0; i < depth; i++)
 	{
 		m_cms->sketch[i] = (int16_t*) malloc(width * sizeof(int16_t));
 		memset(m_cms->sketch[i], 0, width * sizeof(int16_t));
-	}
-
-	cms_init_seeds();
-}
-
-void cms_init_f(uint32_t width, uint32_t depth)
-{
-	cms_init_param();
-	
-	m_cms->sketch = NULL;
-	m_cms->sketchf = (float**) malloc(depth * sizeof(float*));
-	for(size_t i = 0; i < depth; i++)
-	{
-		m_cms->sketchf[i] = (float*) malloc(width * sizeof(float));
-		memset(m_cms->sketchf[i], 0, width * sizeof(float));
 	}
 
 	cms_init_seeds();
@@ -75,12 +58,11 @@ void cms_update_var(uint64_t item, int16_t count)
 		hash = cal_hash(item, m_cms->seeds[i << 1], m_cms->seeds[(i << 1) + 1]);
 		pos = hash & m_cms->width_minus_one;
 
-		if(m_cms->sketch[i][pos] >= HASH_MAX && count > 0)
+		if(m_cms->sketch[i][pos] >= HASH_MAX_16 && count > 0)
 		{
 			continue;
 		}
-
-		if(m_cms->sketch[i][pos] <= HASH_MIN && count < 0)
+		if(m_cms->sketch[i][pos] <= HASH_MIN_16 && count < 0)
 		{
 			continue;
 		}
@@ -103,7 +85,6 @@ void cms_update_var_row(uint64_t item, int16_t count, size_t row)
 	{
 		return;
 	}
-
 	if(m_cms->sketch[row][pos] <= HASH_MIN && count < 0)
 	{
 		return;
@@ -183,11 +164,11 @@ int16_t cms_query_median_even(uint64_t item)
 	qsort(values, m_cms->depth, sizeof(int16_t), cmpfunc_int16);
 
 	// Get median of values
-	if(values[m_cms->depth / 2] < -100)
+	if(values[m_cms->depth / 2] < -s_thres)
 	{
 		median = values[m_cms->depth / 2 - 1];
 	}
-	else if(values[m_cms->depth / 2 - 1] > 100)
+	else if(values[m_cms->depth / 2 - 1] > s_thres)
 	{
 		median = values[m_cms->depth / 2];
 	}
