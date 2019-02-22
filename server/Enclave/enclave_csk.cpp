@@ -18,9 +18,10 @@ void csk_init_param(uint32_t width, uint32_t depth)
 
 void csk_init_seeds()
 {
-	m_csk->seeds = (uint64_t*) malloc(m_csk->depth * sizeof(uint64_t) << 2);
+	uint32_t d = m_csk->depth;
+	m_csk->seeds = (uint64_t*) malloc(d * sizeof(uint64_t) << 2);
 
-	for(size_t i = 0; i < m_csk->depth << 1; i++)
+	for(size_t i = 0; i < d << 1; i++)
 	{
 		m_csk->seeds[(i << 1)] = my_sgx_rand();
 		while(m_csk->seeds[(i << 1)] == 0)
