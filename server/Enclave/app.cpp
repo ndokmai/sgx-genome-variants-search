@@ -228,12 +228,12 @@ sgx_status_t ecall_thread_cms(int thread_num)
 		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_cms->width_minus_one;
 
-		if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		if(m_cms->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
 		{
 			continue;
 		}
 
-		if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		if(m_cms->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
 		{
 			continue;
 		}
@@ -254,12 +254,12 @@ sgx_status_t ecall_thread_cms(int thread_num)
 		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_cms->width_minus_one;
 
-		if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		if(m_cms->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
 		{
 			continue;
 		}
 
-		if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		if(m_cms->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
 		{
 			continue;
 		}
@@ -304,12 +304,12 @@ sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num)
 		if(pos >= (part_num * PARTITION_SIZE) && pos < ((part_num + 1) * PARTITION_SIZE))
 		{
 
-			if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+			if(m_cms->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
 			{
 				continue;
 			}
 
-			if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+			if(m_cms->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
 			{
 				continue;
 			}
@@ -333,12 +333,12 @@ sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num)
 
 		if(pos >= (part_num * PARTITION_SIZE) && pos < ((part_num + 1) * PARTITION_SIZE))
 		{
-			if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+			if(m_cms->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
 			{
 				continue;
 			}
 
-			if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+			if(m_cms->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
 			{
 				continue;
 			}
@@ -377,18 +377,18 @@ sgx_status_t ecall_thread_csk(int thread_num)
 		uint32_t hash;
 		uint32_t pos;
 
-		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
+		hash = cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_csk->width_minus_one;
 
-		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
+		hash = cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
 		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
 
-		if(m_csk->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		if(m_csk->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
 		{
 			continue;
 		}
 
-		if(m_csk->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		if(m_csk->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
 		{
 			continue;
 		}
@@ -404,18 +404,18 @@ sgx_status_t ecall_thread_csk(int thread_num)
 		uint32_t hash;
 		uint32_t pos;
 
-		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
+		hash = cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_csk->width_minus_one;
 
-		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
+		hash = cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
 		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
 
-		if(m_csk->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		if(m_csk->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
 		{
 			continue;
 		}
 
-		if(m_csk->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		if(m_csk->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
 		{
 			continue;
 		}
@@ -574,12 +574,12 @@ void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num)
 		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_cms->width_minus_one;
 
-		if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		if(m_cms->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
 		{
 			continue;
 		}
 
-		if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		if(m_cms->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
 		{
 			continue;
 		}
@@ -600,12 +600,12 @@ void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num)
 		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_cms->width_minus_one;
 
-		if(m_cms->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		if(m_cms->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
 		{
 			continue;
 		}
 
-		if(m_cms->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		if(m_cms->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
 		{
 			continue;
 		}
@@ -867,18 +867,18 @@ void enclave_update_csk(sgx_ra_context_t ctx, uint32_t thread_num)
 		uint32_t hash;
 		uint32_t pos;
 
-		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
+		hash = cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_csk->width_minus_one;
 
-		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
+		hash = cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
 		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
 
-		if(m_csk->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		if(m_csk->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
 		{
 			continue;
 		}
 
-		if(m_csk->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		if(m_csk->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
 		{
 			continue;
 		}
@@ -894,18 +894,18 @@ void enclave_update_csk(sgx_ra_context_t ctx, uint32_t thread_num)
 		uint32_t hash;
 		uint32_t pos;
 
-		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
+		hash = cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_csk->width_minus_one;
 
-		hash = csk_cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
+		hash = cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
 		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
 
-		if(m_csk->sketch[thread_num][pos] >= HASH_MAX && count > 0)
+		if(m_csk->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
 		{
 			continue;
 		}
 
-		if(m_csk->sketch[thread_num][pos] <= HASH_MIN && count < 0)
+		if(m_csk->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
 		{
 			continue;
 		}

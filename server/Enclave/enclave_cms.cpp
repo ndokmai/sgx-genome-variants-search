@@ -6,9 +6,9 @@
 
 struct cms* m_cms = NULL;
 
-void cms_init_param()
+void cms_init_param(uint32_t width, uint32_t depth)
 {
-	m_cms = (csk*) malloc(sizeof(csk));
+	m_cms = (cms*) malloc(sizeof(cms));
 	m_cms->width = width;
 	m_cms->depth = depth;
 	m_cms->width_minus_one = width - 1;
@@ -19,9 +19,9 @@ void cms_init_param()
 
 void cms_init_seeds()
 {
-	m_cms->seeds = (uint64_t*) malloc(depth * sizeof(uint64_t) << 1);
+	m_cms->seeds = (uint64_t*) malloc(m_cms->depth * sizeof(uint64_t) << 1);
 
-	for(size_t i = 0; i < depth; i++)
+	for(size_t i = 0; i < m_cms->depth; i++)
 	{
 		m_cms->seeds[(i << 1)] = my_sgx_rand();
 		while(m_cms->seeds[(i << 1)] == 0)
@@ -34,7 +34,7 @@ void cms_init_seeds()
 
 void cms_init(uint32_t width, uint32_t depth)
 {
-	cms_init_param();
+	cms_init_param(width, depth);
 	
 	m_cms->sketch = (int16_t**) malloc(depth * sizeof(int16_t*));
 	for(size_t i = 0; i < depth; i++)
@@ -86,11 +86,11 @@ void cms_update_var_row(uint64_t item, int16_t count, size_t row)
 	hash = cal_hash(item, m_cms->seeds[row << 1], m_cms->seeds[(row << 1) + 1]);
 	pos = hash & m_cms->width_minus_one;
 
-	if(m_cms->sketch[row][pos] >= HASH_MAX && count > 0)
+	if(m_cms->sketch[row][pos] >= HASH_MAX_16 && count > 0)
 	{
 		return;
 	}
-	if(m_cms->sketch[row][pos] <= HASH_MIN && count < 0)
+	if(m_cms->sketch[row][pos] <= HASH_MIN_16 && count < 0)
 	{
 		return;
 	}
@@ -169,11 +169,11 @@ int16_t cms_query_median_even(uint64_t item)
 	qsort(values, m_cms->depth, sizeof(int16_t), cmpfunc_int16);
 
 	// Get median of values
-	if(values[m_cms->depth / 2] < -s_thres)
+	if(values[m_cms->depth / 2] < -(m_cms->s_thres))
 	{
 		median = values[m_cms->depth / 2 - 1];
 	}
-	else if(values[m_cms->depth / 2 - 1] > s_thres)
+	else if(values[m_cms->depth / 2 - 1] > m_cms->s_thres)
 	{
 		median = values[m_cms->depth / 2];
 	}

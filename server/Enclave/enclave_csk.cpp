@@ -6,7 +6,7 @@
 
 struct csk* m_csk = NULL;
 
-void csk_init_param()
+void csk_init_param(uint32_t width, uint32_t depth)
 {
 	m_csk = (csk*) malloc(sizeof(csk));
 	m_csk->width = width;
@@ -18,9 +18,9 @@ void csk_init_param()
 
 void csk_init_seeds()
 {
-	m_csk->seeds = (uint64_t*) malloc(depth * sizeof(uint64_t) << 2);
+	m_csk->seeds = (uint64_t*) malloc(m_csk->depth * sizeof(uint64_t) << 2);
 
-	for(size_t i = 0; i < depth << 1; i++)
+	for(size_t i = 0; i < m_csk->depth << 1; i++)
 	{
 		m_csk->seeds[(i << 1)] = my_sgx_rand();
 		while(m_csk->seeds[(i << 1)] == 0)
@@ -33,7 +33,7 @@ void csk_init_seeds()
 
 void csk_init(uint32_t width, uint32_t depth)
 {
-	csk_init_param();
+	csk_init_param(width, depth);
 	
 	m_csk->sketch = (int16_t**) malloc(depth * sizeof(int16_t*));
 	m_csk->sketchf = NULL;
@@ -48,7 +48,7 @@ void csk_init(uint32_t width, uint32_t depth)
 
 void csk_init_f(uint32_t width, uint32_t depth)
 {
-	csk_init_param();
+	csk_init_param(width, depth);
 	
 	m_csk->sketch = NULL;
 	m_csk->sketchf = (float**) malloc(depth * sizeof(float*));
@@ -141,7 +141,7 @@ void csk_update_var_f(uint64_t item, float count)
 }
 
 /***** Test function *****/
-void cms_update_var_row(uint64_t item, int16_t count, size_t row)
+void csk_update_var_row(uint64_t item, int16_t count, size_t row)
 {
 	uint32_t hash;
 	uint32_t pos;
@@ -164,7 +164,7 @@ void cms_update_var_row(uint64_t item, int16_t count, size_t row)
 	m_csk->sketch[row][pos] = m_csk->sketch[row][pos] + count_;
 }
 
-void cms_update_var_row_f(uint64_t item, float count, size_t row)
+void csk_update_var_row_f(uint64_t item, float count, size_t row)
 {
 	uint32_t hash;
 	uint32_t pos;
@@ -238,11 +238,11 @@ int16_t csk_query_median_even(uint64_t item)
 	qsort(values, m_csk->depth, sizeof(int16_t), cmpfunc_int16);
 
 	// Get median of values
-	if(values[m_csk->depth / 2] < -s_thres)
+	if(values[m_csk->depth / 2] < -(m_csk->s_thres))
 	{
 		median = values[m_csk->depth / 2 - 1];
 	}
-	else if(values[m_csk->depth / 2 - 1] > s_thres)
+	else if(values[m_csk->depth / 2 - 1] > m_csk->s_thres)
 	{
 		median = values[m_csk->depth / 2];
 	}
@@ -327,11 +327,11 @@ float csk_query_median_even_f(uint64_t item)
 	qsort(values, m_csk->depth, sizeof(float), cmpfunc_float);
 
 	// Get median of values
-	if(values[m_csk->depth / 2] + s_thres < 0.0)
+	if(values[m_csk->depth / 2] + m_csk->s_thres < 0.0)
 	{
 		median = values[m_csk->depth / 2 - 1];
 	}
-	else if(values[m_csk->depth / 2 - 1] - s_thres > 0.0)
+	else if(values[m_csk->depth / 2 - 1] -(m_csk->s_thres) > 0.0)
 	{
 		median = values[m_csk->depth / 2];
 	}
