@@ -267,7 +267,7 @@ void app_cmtf(MsgIO* msgio, config_t& config)
 	size_t i;
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing case file: %d ...\n", i);
+		fprintf(stderr, "Processing file: %d ...\n", i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;

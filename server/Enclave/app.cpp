@@ -26,7 +26,7 @@
 
 #define OA_INIT_CAPACITY	(1 << 23)
 #define RHHT_INIT_CAPACITY	(1 << 23)
-#define CMTF_NUM_BUCKETS	(1 << 20)
+#define CMTF_NUM_BUCKETS	(1 << 21)
 
 #define CMS_WIDTH			(1 << 18)
 #define	CMS_DEPTH			8
@@ -1549,6 +1549,9 @@ void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 		*head_ptr = new_elem;
 		cmtf_snp_table->num_elements = cmtf_snp_table->num_elements + 1;
 	}
+
+	// We've processed the data, now clear it
+	delete[] plaintext;
 }
 
 /***** END: Enclave Chained-Move-to-Front Hash Table Public Interface *****/
