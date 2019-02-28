@@ -53,6 +53,8 @@ uint8_t ptxt_len;
 uint32_t column_number = 0;
 uint32_t file_idx = 0;
 float* phenotypes;
+float *u;
+float **enclave_eig;
 uint32_t enc_id_buf[ENC_RES_BUF_LEN];
 float enc_countf_buf[ENC_RES_BUF_LEN];
 
@@ -131,6 +133,7 @@ void enclave_svd()
 	float** A = getmsk();
 	float** Q = (float**) malloc(MCSK_WIDTH * sizeof(float*));
 	float* S = (float*) malloc(MCSK_WIDTH * sizeof(float));
+	u = (float*) malloc(MCSK_WIDTH * sizeof(float));
 
 	for(size_t i = 0; i < MCSK_WIDTH; i++)
 	{
@@ -140,8 +143,7 @@ void enclave_svd()
 	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, S, Q); //Copy k columns of Q to A.
 	orthonormal_test(Q, MCSK_WIDTH, ortho_res);
 
-	int k = MCSK_NUM_PC;
-	for (int i = 0; i < k; i++)
+	for (int i = 0; i < MCSK_NUM_PC; i++)
 	{
 		memcpy(A[i], Q[i], MCSK_WIDTH * sizeof(float));
 	}
@@ -161,12 +163,13 @@ void enclave_svd()
 	for (int i = 0; i < MCSK_WIDTH; i++)
 	{
 		Q[i][i] = 1.0;
+		u[i] = 1.0;
 		for (int j = i + 1; j < MCSK_WIDTH; j++)
 		{
 			Q[i][j] = Q[j][i] = 0.0;
 		}
 	}
-	for (int pc = 0; pc < k; pc++)
+	for (int pc = 0; pc < MCSK_NUM_PC; pc++)
 	{
 		for (int i = 0; i < MCSK_WIDTH; i++)
 		{
@@ -178,8 +181,10 @@ void enclave_svd()
 	}
 
 	// Compute Q * phenotype vector
-	matrix_vector_mult(Q, phenotypes, A[k], MCSK_WIDTH, MCSK_WIDTH);
-	memcpy(phenotypes, A[k], MCSK_WIDTH * sizeof(float));
+	matrix_vector_mult(Q, phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH, MCSK_WIDTH);
+	matrix_vector_mult(Q, u, A[MCSK_NUM_PC + 1], MCSK_WIDTH, MCSK_WIDTH);
+	memcpy(phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH * sizeof(float));
+	memcpy(u, A[MCSK_NUM_PC + 1], MCSK_WIDTH * sizeof(float))
 	for(size_t  i = 0 ; i < 2000; i++)
 	{
 		enclave_mcsk_buf[i] = phenotypes[i];
@@ -192,6 +197,12 @@ void enclave_svd()
 	}
 	free(Q);
 	free(S);
+	enclave_eig = (float**) malloc(MCSK_NUM_PC * sizeof(float*));
+	for(int pc = 0; pc < MCSK_NUM_PC; pc++)
+	{
+		enclave_eig[pc] = (float*) malloc(MCSK_WIDTH * sizeof(float));
+		memcpy(A[i], Q[i], MCSK_WIDTH * sizeof(float));
+	}
 	mcsk_free();	
 	free(m_mcsk);
 }
@@ -511,6 +522,92 @@ void enclave_decrypt_process_sketch_rhht(sgx_ra_context_t ctx, uint8_t* cipherte
 		}
 	}
 
+	// We've processed the data, now clear it
+	delete[] plaintext;
+}
+
+void enclave_init_rhht_pcc()
+{
+	// Allocate enclave Robin-Hood hash table
+	// TODO: Allow growing (currently not)
+	allocate_table_pcc(MH_INIT_CAPACITY * 2, MCSK_NUM_PC);
+
+	// Insert keys, initialize allele counts to be 0
+	for(size_t i = 0; i < MH_INIT_CAPACITY; i++)
+	{
+		// NOTE: Setting allele_type to 0 is normally meaningless, this is a hack.
+		insert_pcc(mh->mh_array[i].key);
+	}
+
+	// Deallocate min heap
+	free_heap();
+
+	// Possibly outside enclave_init_sketch_rhht()
+	// Deallocate sketches
+}
+
+void enclave_decrypt_process_rhht_pcc(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+	uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+	enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	// Get the meta-information first
+	uint32_t patient_status = ((uint32_t*) plaintext) [0];
+	uint32_t het_start_idx = ((uint32_t*) plaintext) [1];
+
+	size_t i;
+	for(i = 2; i < het_start_idx + 2; i++)
+	{
+		uint32_t elem_id = ((uint32_t*) plaintext) [i];
+
+		int32_t index = find_pcc(elem_id);
+
+		// If found, update entry based on allele type
+		if(index != -1)
+		{
+			rhht_snp_table_pcc->buffer[index].ssqg += 4;
+			rhht_snp_table_pcc->buffer[index].dotprod += (phenotypes[file_idx] * 2);
+			rhht_snp_table_pcc->buffer[index].sx += (2 * (1.0 - u[file_idx]));
+			for(int pc = 0; pc < MCSK_NUM_PC; pc++)
+			{
+				rhht_snp_table_pcc->buffer[index].pc_projections[pc] += (enclave_eig[pc][file_idx] * 2);
+			}
+		}
+	}
+
+	for(i = het_start_idx + 2; i < num_elems; i++)
+	{
+		uint32_t elem_id = ((uint32_t*) plaintext) [i];
+
+		int32_t index = find_pcc(elem_id);
+
+		// If found, update entry based on allele type
+		if(index != -1)
+		{
+			rhht_snp_table_pcc->buffer[index].ssqg += 1;
+			rhht_snp_table_pcc->buffer[index].dotprod += phenotypes[file_idx];
+			rhht_snp_table_pcc->buffer[index].sx += (1.0 - u[file_idx]);
+			for(int pc = 0; pc < MCSK_NUM_PC; pc++)
+			{
+				rhht_snp_table_pcc->buffer[index].pc_projections[pc] += enclave_eig[pc][file_idx];
+			}
+		}
+	}
+
+	file_idx = file_idx + 1;
 	// We've processed the data, now clear it
 	delete[] plaintext;
 }
@@ -1661,6 +1758,19 @@ float chi_sq(uint16_t case_min, uint16_t control_min, uint16_t case_total, uint1
 	return chi_sq_val;
 }
 
+float chi_sq_ca(uint16_t ssqg, uint16_t total, float dotprod, float sx, float sy, float sy2, float *pc_projections)
+{
+	float chi_sq_val = 0, sx2 = 0;
+	sx2 = ssqg;
+	for(int pc = 0; pc < MCSK_NUM_PC; pc++)
+	{
+		sx2 -= (pc_projections[pc] * pc_projections[pc]);
+	}
+	chi_sq_val = total * dotprod - sx * sy;
+	chi_sq_val = (chi_sq_val * chi_sq_val) / ((total * sx2 - sx * sx) * (total * sy2 - sy * sy));
+	return chi_sq_val;
+}
+
 void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 {
 	uint32_t k = 1000;
@@ -1703,6 +1813,63 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 				}
 			}
 			*/
+		}
+	}
+	
+	for(uint32_t i = 0; i < k; i++)
+	{
+		//double pval = pochisq((double) top_k_chi_sq[i]);
+
+		// Proper output test
+		enclave_res_buf[i] = top_k_ids[i];
+	}
+}
+
+void rhht_init_chi_sq_ca(uint16_t total)
+{
+	uint32_t k = 1000;
+	uint32_t top_k_ids[k];
+	float top_k_chi_sq[k];
+	uint32_t num_used = 0;
+	float chi_sq_val;
+	float sy = 0;
+	for(uint16_t i = 0; i < total; i++)
+		sy += phenotypes[i];
+	float sy2 = float dot_prod(phenotypes, phenotypes, total);
+	for(uint32_t i = 0; i < rhht_snp_table_pcc->capacity; i++)
+	{
+		if(rhht_snp_table_pcc->buffer[i].key != 0)
+		{
+			// Calculate the chi squared value
+			chi_sq_val = chi_sq_ca(rhht_snp_table_pcc->buffer[i].ssqg, total, rhht_snp_table_pcc->buffer[i].dotprod, \
+						rhht_snp_table_pcc->buffer[i].sx, sy, sy2, rhht_snp_table_pcc->buffer[i].pc_projections);
+
+			// If the top-k array is not full, add current snp without any checks
+			if(num_used < k)
+			{
+				top_k_ids[num_used] = rhht_snp_table_pcc->buffer[i].key;
+				top_k_chi_sq[num_used] = chi_sq_val;
+				num_used = num_used + 1;
+			}
+			else
+			{
+				// Find the index of the minimum chi squared value in the top-k array
+				uint16_t index_min = 0;
+				for(uint8_t j = 1; j < 10; j++)
+				{
+					if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
+					{
+						index_min = j;
+					}
+				}
+
+				// If the chi squared value of the current element is greater than that of index min, replace
+				if(chi_sq_val > top_k_chi_sq[index_min])
+				{
+					top_k_ids[index_min] = rhht_snp_table_pcc->buffer[i].key;
+					top_k_chi_sq[index_min] = chi_sq_val;
+				}
+			}
 		}
 	}
 	
