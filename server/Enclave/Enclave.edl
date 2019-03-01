@@ -56,6 +56,9 @@ enclave
 		public void enclave_init_sketch_rhht();
 		public void enclave_decrypt_process_sketch_rhht(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
+		public void enclave_init_rhht_pcc();
+		public void enclave_decrypt_process_rhht_pcc(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
+
 		// Chained-Move-to-Front Hash Table public ECALL interface
 		public void enclave_init_cmtf();
 		public void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
@@ -96,6 +99,7 @@ enclave
 		public void oa_init_chi_sq(uint16_t case_count, uint16_t control_count);
 		public void rhht_init_chi_sq(uint16_t case_count, uint16_t control_count);
 		public void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total);
+		public void rhht_init_chi_sq_ca(uint16_t count_total);
 	};
     
 	untrusted

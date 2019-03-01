@@ -479,8 +479,8 @@ void app_cms(MsgIO* msgio, config_t& config)
 	// Set app specific variables
 	uint32_t case_count = 2000;
 	uint32_t control_count = 2000;
-	//uint32_t num_files = 2000;
-	uint32_t num_files = 44000;
+	uint32_t num_files = 2000;
+	//uint32_t num_files = 44000;
 
 	// Start timer
 	std::clock_t start;
@@ -534,7 +534,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 	// Stop timer and report time for the first pass over the data
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
 	fprintf(stderr, "First Pass (CMS) took: %lf seconds\n", duration);
-
+/*
 	// Initialize the min-heap within the enclave
 	enclave_init_mh(eid);
 
@@ -582,7 +582,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 	// Stop timer and report time for the second pass over the data
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
 	fprintf(stderr, "Second Pass (CMS) took: %lf seconds\n", duration);
-
+*/
 	// Make a final ECALL to receive the results and report results
 	/*
 	uint32_t* my_res;
@@ -1317,7 +1317,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "First Pass (MCSK) took: %lf seconds\n", duration);
 
 	// Perform mean centering before SVD
-	enclave_mcsk_mean_centering(eid);
+//	enclave_mcsk_mean_centering(eid);
 
 	// DEBUG
 //	mcsk_pull_row(eid);
@@ -1329,10 +1329,10 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 //	}
 
 	// Restart timer
-	start = std::clock();
+//	start = std::clock();
 
 	// SVD
-	enclave_svd(eid);
+//	enclave_svd(eid);
 
 	// DEBUG: memory usage
 //	enclave_get_mem_used(eid, mem_usage);
@@ -1363,16 +1363,16 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 //	}
 
 	// Stop timer and report time for the first pass over the data
-	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
-	fprintf(stderr, "SVD took: %lf seconds\n", duration);
+//	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
+//	fprintf(stderr, "SVD took: %lf seconds\n", duration);
 
 	// Restart timer
-	start = std::clock();
+//	start = std::clock();
 
 	// Make an ECALL to initialize the Enclave CSK structure
-	enclave_init_csk_f(eid);
+//	enclave_init_csk_f(eid);
 //	enclave_init_csk(eid);
-
+/*
 	// Second Pass: Update the CSK structure
 	fprintf(stderr, "Second Pass, updating CSK ...\n");
 	for(i = 0; i < num_files; i++)
@@ -1466,14 +1466,72 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "Third Pass (CSK) took: %lf seconds\n", duration);
 
 	// DEBUG
-	uint32_t my_ids[1000];
-	float my_counts[1000];
-	enclave_get_id_buf(eid, my_ids);
-	enclave_get_countf_buf(eid, my_counts);
-	for(int i = 0; i < 1000; i++)
+//	uint32_t my_ids[1000];
+//	float my_counts[1000];
+//	enclave_get_id_buf(eid, my_ids);
+//	enclave_get_countf_buf(eid, my_counts);
+//	for(int i = 0; i < 1000; i++)
+//	{
+//		fprintf(stderr, "%lu\t%f\n", (unsigned long) my_ids[i], my_counts[i]);
+//	}
+
+	// Last Pass: Use rhht and mh for pcc
+	fprintf(stderr, "Fourth pass, PCC ...\n");
+	enclave_init_rhht_pcc(eid);
+	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "%lu\t%f\n", (unsigned long) my_ids[i], my_counts[i]);
+		fprintf(stderr, "Processing file: %d ...\n", i);
+
+		// First, receive the total number of elements to be received
+		uint8_t* num_elems_buf;
+		size_t len_num_elems;
+		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
+
+		// Now, receive and process next data chunk until all data is processed
+		uint32_t num_elems_rem = num_elems;
+		uint32_t num_elems_rcvd = 0;
+		while(num_elems_rcvd != num_elems)
+		{
+			size_t to_read_elems = 0;
+			if(num_elems_rem < chunk_size)
+			{
+				to_read_elems = num_elems_rem;
+			}
+			else
+			{
+				to_read_elems = chunk_size;
+			}
+		
+			// Receive data (encrypted)
+			uint8_t* ciphertext;
+			size_t ciphertext_len;
+			msgio->read_bin(&ciphertext, &ciphertext_len);
+
+			// Make an ECALL to decrypt the data and process it inside the Enclave
+			enclave_decrypt_process_rhht_pcc(eid, ra_ctx, ciphertext, ciphertext_len);
+			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+			num_elems_rem = num_elems_rem - to_read_elems;
+
+			// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+			delete[] ciphertext;
+		}
 	}
+	// Stop timer and report time for the third pass over the data
+	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
+	fprintf(stderr, "Fourth Pass (PCC) took: %lf seconds\n", duration);
+
+	// Make an ECALL to perform the chi-squared test
+//	rhht_init_chi_sq_ca(eid, 2000);
+
+	// Make an ECALL to receive the result
+//	uint32_t my_res[1000];
+//	enclave_get_res_buf(eid, my_res);
+//	for(int i = 0; i < 1000; i++)
+//	{
+//		fprintf(stderr, "%lu\n", (unsigned long) my_res[i]);
+//	}
+*/
 }
 
 int main(int argc, char** argv)
@@ -1485,14 +1543,14 @@ int main(int argc, char** argv)
 	{
 		//app_oa(msgio,config);
 		//app_rhht(msgio, config);
-		app_cmtf(msgio, config);
+		//app_cmtf(msgio, config);
 		//app_cms(msgio, config);
 		//app_csk(msgio, config);
 		//app_cms_mt(msgio, config);
 		//app_cms_mt_ca(msgio, config);
 		//app_csk_mt(msgio, config);
 		//app_sketch_rhht(msgio, config);
-		//app_svd_mcsk(msgio, config);
+		app_svd_mcsk(msgio, config);
 		finalize(msgio, config);
 	}
 }
