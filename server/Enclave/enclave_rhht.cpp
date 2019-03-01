@@ -1,4 +1,5 @@
-#include <stdlib.h>
+#include "stdlib.h"
+#include "string.h"
 #include "enclave_rhht.h"
 
 struct rhht_table* rhht_snp_table = NULL;
@@ -28,7 +29,7 @@ void allocate_table(uint32_t capacity)
 void allocate_table_pcc(uint32_t capacity, uint8_t num_pc)
 {
 	// Allocate memory for the top hash_table structure
-	rhht_snp_table_pcc = (struct rhht_table*) malloc(sizeof(struct rhht_table));
+	rhht_snp_table_pcc = (struct rhht_table_pcc*) malloc(sizeof(struct rhht_table_pcc));
 
 	// Initialization
 	rhht_snp_table_pcc->num_elems = 0;
@@ -135,9 +136,16 @@ inline void insert_helper_pcc(uint32_t hash, uint32_t key)
 {
 	uint32_t pos = hash;
 	uint32_t dist = 0;
-	uint32_t key_ = key, key__ = key;
-	float ssqg = 0, ssqg_ = 0, dotprod = 0, dotprod_ = 0, sx = 0, sx_ = 0;
-	float* pc_projections = NULL, pc_projections_ = NULL;
+	uint32_t key_ = key;
+	uint32_t key__ = key;
+	float ssqg = 0;
+	float ssqg_ = 0;
+	float dotprod = 0;
+	float dotprod_ = 0;
+	float sx = 0;
+	float sx_ = 0;
+	float* pc_projections = NULL;
+	float* pc_projections_ = NULL;
 
 	for(;;)
 	{
@@ -229,7 +237,7 @@ void grow_pcc()
 	uint32_t old_capacity = rhht_snp_table_pcc->capacity;
 	uint32_t new_capacity = old_capacity * 2;
 
-	allocate_table_pcc(new_capacity);
+	allocate_table_pcc(new_capacity, rhht_snp_table_pcc->k);
 
 	for(uint32_t i = 0; i < old_capacity; i++)
 	{

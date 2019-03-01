@@ -184,8 +184,8 @@ void enclave_svd()
 	matrix_vector_mult(Q, phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH, MCSK_WIDTH);
 	matrix_vector_mult(Q, u, A[MCSK_NUM_PC + 1], MCSK_WIDTH, MCSK_WIDTH);
 	memcpy(phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH * sizeof(float));
-	memcpy(u, A[MCSK_NUM_PC + 1], MCSK_WIDTH * sizeof(float))
-	for(size_t  i = 0 ; i < 2000; i++)
+	memcpy(u, A[MCSK_NUM_PC + 1], MCSK_WIDTH * sizeof(float));
+	for(size_t i = 0; i < 2000; i++)
 	{
 		enclave_mcsk_buf[i] = phenotypes[i];
 	}
@@ -201,7 +201,7 @@ void enclave_svd()
 	for(int pc = 0; pc < MCSK_NUM_PC; pc++)
 	{
 		enclave_eig[pc] = (float*) malloc(MCSK_WIDTH * sizeof(float));
-		memcpy(A[i], Q[i], MCSK_WIDTH * sizeof(float));
+		memcpy(A[pc], Q[pc], MCSK_WIDTH * sizeof(float));
 	}
 	mcsk_free();	
 	free(m_mcsk);
@@ -1832,10 +1832,14 @@ void rhht_init_chi_sq_ca(uint16_t total)
 	float top_k_chi_sq[k];
 	uint32_t num_used = 0;
 	float chi_sq_val;
+
 	float sy = 0;
 	for(uint16_t i = 0; i < total; i++)
+	{
 		sy += phenotypes[i];
-	float sy2 = float dot_prod(phenotypes, phenotypes, total);
+	}
+
+	float sy2 = dot_prod(phenotypes, phenotypes, total);
 	for(uint32_t i = 0; i < rhht_snp_table_pcc->capacity; i++)
 	{
 		if(rhht_snp_table_pcc->buffer[i].key != 0)
