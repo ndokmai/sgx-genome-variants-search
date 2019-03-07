@@ -82,6 +82,7 @@ enclave
 		public void enclave_decrypt_query_csk_f(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
 		// Matrix Count-Sketch public ECALL interface
+		public void enclave_reset_file_idx();
 		public void enclave_init_mcsk();
 		public void enclave_decrypt_update_mcsk(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 		public void enclave_mcsk_mean_centering();

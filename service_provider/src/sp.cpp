@@ -260,7 +260,7 @@ void app(MsgIO* msgio)
 */
 
 //fprintf(stderr, "\n");
-/*
+
 	// Another pass
 	// Now, read and process the files in random order
 	for(i = 0; i < num_files; i++)
@@ -477,7 +477,7 @@ void app(MsgIO* msgio)
 			delete[] num_elems_buf;
 		}
 	}
-*/			
+			
 	return 0;
 }
 

@@ -1311,13 +1311,16 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 			delete[] ciphertext;
 		}
 	}
+	
+	// Reset file_idx
+	enclave_reset_file_idx(eid);
 
 	// Stop timer and report time for the first pass over the data
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
 	fprintf(stderr, "First Pass (MCSK) took: %lf seconds\n", duration);
 
 	// Perform mean centering before SVD
-//	enclave_mcsk_mean_centering(eid);
+	enclave_mcsk_mean_centering(eid);
 
 	// DEBUG
 //	mcsk_pull_row(eid);
@@ -1329,10 +1332,10 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 //	}
 
 	// Restart timer
-//	start = std::clock();
+	start = std::clock();
 
 	// SVD
-//	enclave_svd(eid);
+	enclave_svd(eid);
 
 	// DEBUG: memory usage
 //	enclave_get_mem_used(eid, mem_usage);
@@ -1363,21 +1366,21 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 //	}
 
 	// Stop timer and report time for the first pass over the data
-//	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
-//	fprintf(stderr, "SVD took: %lf seconds\n", duration);
+	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
+	fprintf(stderr, "SVD took: %lf seconds\n", duration);
 
 	// Restart timer
-//	start = std::clock();
+	start = std::clock();
 
 	// Make an ECALL to initialize the Enclave CSK structure
-//	enclave_init_csk_f(eid);
+	enclave_init_csk_f(eid);
 //	enclave_init_csk(eid);
-/*
+
 	// Second Pass: Update the CSK structure
 	fprintf(stderr, "Second Pass, updating CSK ...\n");
 	for(i = 0; i < num_files; i++)
 	{
-		//fprintf(stderr, "Second pass, processing file: %d ...\n", i);
+//		fprintf(stderr, "Second pass, processing file: %d ...\n", i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -1416,12 +1419,18 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 		}
 	}
 
+	// Reset file_idx
+	enclave_reset_file_idx(eid);
+
 	// Stop timer and report time for the second pass over the data
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
 	fprintf(stderr, "Second Pass (CSK) took: %lf seconds\n", duration);
 
 	// Restart timer
 	start = std::clock();
+
+	// Initialize the min-heap within the enclave
+        enclave_init_mh(eid);
 
 	// Third Pass: Query the CSK structure
 	fprintf(stderr, "Third pass, querying CSK ...\n");
@@ -1480,7 +1489,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 	enclave_init_rhht_pcc(eid);
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %d ...\n", i);
+		//fprintf(stderr, "Processing file: %d ...\n", i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -1522,16 +1531,19 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "Fourth Pass (PCC) took: %lf seconds\n", duration);
 
 	// Make an ECALL to perform the chi-squared test
-//	rhht_init_chi_sq_ca(eid, 2000);
+	rhht_init_chi_sq_ca(eid, 2000);
+	//abort();
 
 	// Make an ECALL to receive the result
-//	uint32_t my_res[1000];
-//	enclave_get_res_buf(eid, my_res);
-//	for(int i = 0; i < 1000; i++)
-//	{
-//		fprintf(stderr, "%lu\n", (unsigned long) my_res[i]);
-//	}
-*/
+	uint32_t my_ids[1000];
+	float my_counts[1000];
+	enclave_get_id_buf(eid, my_ids);
+	enclave_get_countf_buf(eid, my_counts);
+	for(int i = 0; i < 1000; i++)
+	{
+	        fprintf(stderr, "%lu\t%f\n", (unsigned long) my_ids[i], my_counts[i]);
+	}
+
 }
 
 int main(int argc, char** argv)

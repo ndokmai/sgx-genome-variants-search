@@ -31,7 +31,7 @@
 #define CMS_WIDTH			(1 << 18)
 #define	CMS_DEPTH			8
 
-#define	CSK_WIDTH			(1 << 20)
+#define	CSK_WIDTH			(1 << 19)
 #define	CSK_DEPTH			13
 
 #define MCSK_WIDTH			2000
@@ -50,13 +50,19 @@ float enclave_eig_buf[4000];
 float ortho_res[6];
 uint8_t* ptxt;
 uint8_t ptxt_len;
-uint32_t column_number = 0;
+//uint32_t column_number = 0;
 uint32_t file_idx = 0;
+//uint32_t file_idx_ = 0;
 float* phenotypes;
 float *u;
 float **enclave_eig;
 uint32_t enc_id_buf[ENC_RES_BUF_LEN];
 float enc_countf_buf[ENC_RES_BUF_LEN];
+
+void enclave_reset_file_idx()
+{
+	file_idx = 0;
+}
 
 void mcsk_pull_row()
 {
@@ -95,10 +101,10 @@ void enclave_decrypt_update_mcsk(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 	uint32_t num_het_start = ((uint32_t*) plaintext) [1];
 
 	// Set initial phenotype
-	phenotypes[column_number] = -1.0;
+	phenotypes[file_idx] = -1.0;
 	if(patient_status == 0)
 	{
-		phenotypes[column_number] = 1.0;
+		phenotypes[file_idx] = 1.0;
 	}
 
 	// Update the MCSK for every element
@@ -107,20 +113,20 @@ void enclave_decrypt_update_mcsk(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 	for(i = 2; i < num_het_start + 2; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
-		mcsk_update_var(rs_id_uint, column_number, 2.0);
+		mcsk_update_var(rs_id_uint, file_idx, 2.0);
 	}
 
 	for(i = num_het_start + 2; i < num_elems; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
-		mcsk_update_var(rs_id_uint, column_number, 1.0);
+		mcsk_update_var(rs_id_uint, file_idx, 1.0);
 	}
 
 	// We've processed the data, now clear it
 	delete[] plaintext;
 
 	// Increment column number
-	column_number = column_number + 1;
+	file_idx = file_idx + 1;
 }
 
 void enclave_mcsk_mean_centering()
@@ -140,9 +146,14 @@ void enclave_svd()
 		Q[i] = (float*) malloc(MCSK_WIDTH * sizeof(float));
 	}
 
-	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, S, Q); //Copy k columns of Q to A.
-	orthonormal_test(Q, MCSK_WIDTH, ortho_res);
+	// Compute SVD A = USV^T
+	// V stored in Q
+	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, S, Q);
 
+	// DEBUG: Test whether rows of V are orthonormal
+//	orthonormal_test(Q, MCSK_WIDTH, ortho_res);
+
+	// Copy k rows of Q to A.
 	for (int i = 0; i < MCSK_NUM_PC; i++)
 	{
 		memcpy(A[i], Q[i], MCSK_WIDTH * sizeof(float));
@@ -158,8 +169,7 @@ void enclave_svd()
 //		enclave_eig_buf[i] = A[1][i - 2000];
 //	}
 		
-
-	// Compute matrix Q
+	// Reset Q = I, u = all 1 vector
 	for (int i = 0; i < MCSK_WIDTH; i++)
 	{
 		Q[i][i] = 1.0;
@@ -169,6 +179,8 @@ void enclave_svd()
 			Q[i][j] = Q[j][i] = 0.0;
 		}
 	}
+
+	// Compute matrix Q = I - VV^T
 	for (int pc = 0; pc < MCSK_NUM_PC; pc++)
 	{
 		for (int i = 0; i < MCSK_WIDTH; i++)
@@ -182,13 +194,33 @@ void enclave_svd()
 
 	// Compute Q * phenotype vector
 	matrix_vector_mult(Q, phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH, MCSK_WIDTH);
-	matrix_vector_mult(Q, u, A[MCSK_NUM_PC + 1], MCSK_WIDTH, MCSK_WIDTH);
 	memcpy(phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH * sizeof(float));
+
+	// Reset Q = 0 to compute u = VV^Tu 
+	for (int i = 0; i < MCSK_WIDTH; i++)
+        {
+                for (int j = 0; j < MCSK_WIDTH; j++)
+                {
+                        Q[i][j] = 0.0;
+                }
+        }
+        for (int pc = 0; pc < MCSK_NUM_PC; pc++)
+        {
+                for (int i = 0; i < MCSK_WIDTH; i++)
+                {
+                        for (int j = 0; j < MCSK_WIDTH; j++)
+                        {
+                                Q[i][j] += A[pc][i] * A[pc][j];
+                        }
+                }
+        }
+	matrix_vector_mult(Q, u, A[MCSK_NUM_PC + 1], MCSK_WIDTH, MCSK_WIDTH);
 	memcpy(u, A[MCSK_NUM_PC + 1], MCSK_WIDTH * sizeof(float));
-	for(size_t i = 0; i < 2000; i++)
-	{
-		enclave_mcsk_buf[i] = phenotypes[i];
-	}
+
+//	for(size_t i = 0; i < 2000; i++)
+//	{
+//		enclave_mcsk_buf[i] = phenotypes[i];
+//	}
 	
 	// Free allocated memories
 	for (int i = 0; i < MCSK_WIDTH; i++)
@@ -197,13 +229,17 @@ void enclave_svd()
 	}
 	free(Q);
 	free(S);
+
+	// Keep only the first k rows of V, now stroed in the first k rows of A
 	enclave_eig = (float**) malloc(MCSK_NUM_PC * sizeof(float*));
 	for(int pc = 0; pc < MCSK_NUM_PC; pc++)
 	{
 		enclave_eig[pc] = (float*) malloc(MCSK_WIDTH * sizeof(float));
-		memcpy(A[pc], Q[pc], MCSK_WIDTH * sizeof(float));
+		memcpy(enclave_eig[pc], A[pc], MCSK_WIDTH * sizeof(float));
 	}
-	mcsk_free();	
+
+	// Free the sketch matrix
+	mcsk_free();
 	free(m_mcsk);
 }
 
@@ -536,7 +572,7 @@ void enclave_init_rhht_pcc()
 	for(size_t i = 0; i < MH_INIT_CAPACITY; i++)
 	{
 		// NOTE: Setting allele_type to 0 is normally meaningless, this is a hack.
-		insert_pcc(mh->mh_array[i].key);
+		insert_pcc(mh->mh_array_f[i].key);
 	}
 
 	// Deallocate min heap
@@ -1229,21 +1265,21 @@ void enclave_decrypt_query_csk_f(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 		{
 			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 			est_diff = csk_query_median_odd_f(rs_id_uint);
-//			if(est_diff < 0)
-//			{
-//				est_diff = est_diff * -1;
-//			}
+			if(est_diff < 0)
+			{
+				est_diff = -est_diff;
+			}
 
 			// Try to insert the element into the min heap
 			// Updated if already in
 			// If the heap is full, inserted if its absolute difference is larger than the root
-			enc_id_buf[i] = rs_id_uint;
-			enc_countf_buf[i] = est_diff;
-//			mh_insert(rs_id_uint, est_diff);
-			if(i == 1000)
-			{
-				break;
-			}
+//			enc_id_buf[i] = rs_id_uint;
+//			enc_countf_buf[i] = est_diff;
+			mh_insert_f(rs_id_uint, est_diff);
+//			if(i == 1000)
+//			{
+//				break;
+//			}
 		}
 	}
 
@@ -1858,8 +1894,8 @@ void rhht_init_chi_sq_ca(uint16_t total)
 			else
 			{
 				// Find the index of the minimum chi squared value in the top-k array
-				uint16_t index_min = 0;
-				for(uint8_t j = 1; j < 10; j++)
+				uint32_t index_min = 0;
+				for(uint32_t j = 1; j < k; j++)
 				{
 					if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
 					{
@@ -1882,7 +1918,8 @@ void rhht_init_chi_sq_ca(uint16_t total)
 		//double pval = pochisq((double) top_k_chi_sq[i]);
 
 		// Proper output test
-		enclave_res_buf[i] = top_k_ids[i];
+		enc_id_buf[i] = top_k_ids[i];
+		enc_countf_buf[i] = top_k_chi_sq[i];
 	}
 }
 
@@ -1996,7 +2033,7 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 /***** BEGIN: Enclave Min-Heap Public ECALL Interface *****/
 void enclave_init_mh()
 {
-	allocate_heap(MH_INIT_CAPACITY);
+	allocate_heap_f(MH_INIT_CAPACITY);
 }
 /***** END: Enclave Min-Heap Public ECALL Interface *****/
 

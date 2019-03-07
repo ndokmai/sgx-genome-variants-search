@@ -152,6 +152,7 @@ inline void insert_helper_pcc(uint32_t hash, uint32_t key)
 		if((rhht_snp_table_pcc->buffer[pos].key & ((rhht_snp_table_pcc->capacity) - 1)) == 0)
 		{
 			construct_pcc(pos);
+			rhht_snp_table_pcc->buffer[pos].key = key;
 			if(key_ != key)
 			{
 				set_index(pos, key_, ssqg, dotprod, sx, pc_projections);
@@ -290,7 +291,7 @@ void insert_pcc(uint32_t key)
 		grow_pcc();
 	}
 
-	uint32_t hash = key & ((rhht_snp_table->capacity) - 1);
+	uint32_t hash = key & ((rhht_snp_table_pcc->capacity) - 1);
 	insert_helper_pcc(hash, key);
 }
 
