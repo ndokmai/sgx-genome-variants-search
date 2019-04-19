@@ -145,10 +145,9 @@ void csk_update_var_f(uint64_t item, float count)
 void csk_update_var_row(uint64_t item, int16_t count, size_t row)
 {
 	uint32_t hash;
-	uint32_t pos;
 
 	hash = cal_hash(item, m_csk->seeds[row << 1], m_csk->seeds[(row << 1) + 1]);
-	pos = hash & m_csk->width_minus_one;
+	uint32_t pos = hash & m_csk->width_minus_one;
 	hash = cal_hash(item, m_csk->seeds[(row + m_csk->depth) << 1], m_csk->seeds[((row + m_csk->depth) << 1) + 1]);
 	int16_t count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
 
@@ -168,10 +167,9 @@ void csk_update_var_row(uint64_t item, int16_t count, size_t row)
 void csk_update_var_row_f(uint64_t item, float count, size_t row)
 {
 	uint32_t hash;
-	uint32_t pos;
 
 	hash = cal_hash(item, m_csk->seeds[row << 1], m_csk->seeds[(row << 1) + 1]);
-	pos = hash & m_csk->width_minus_one;
+	uint32_t pos = hash & m_csk->width_minus_one;
 	hash = cal_hash(item, m_csk->seeds[(row + m_csk->depth) << 1], m_csk->seeds[((row + m_csk->depth) << 1) + 1]);
 
 	if((hash & 0x1) == 0)

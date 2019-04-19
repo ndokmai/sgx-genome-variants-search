@@ -201,7 +201,7 @@ int sgx_thread_set_untrusted_event_ocall(const void *waiter)
 
 	if ( l_sgx_thread_set_untrusted_event_ocall == -1 ) _undefined_symbol("sgx_thread_set_untrusted_event_ocall");
 
-	return (int) p_sgx_thread_set_untrusted_event_ocall(waiter);
+	return (long) p_sgx_thread_set_untrusted_event_ocall(waiter);
 }
 
 int exchange_report_ocall(uint32_t sid, uint8_t *dh_msg2, uint32_t dh_msg2_size, uint8_t *dh_msg3, uint32_t dh_msg3_size, uint32_t timeout)
@@ -213,7 +213,7 @@ int exchange_report_ocall(uint32_t sid, uint8_t *dh_msg2, uint32_t dh_msg2_size,
 
 	if ( l_exchange_report_ocall == -1 ) _undefined_symbol("exchange_report_ocall");
 
-	return (int) p_exchange_report_ocall(sid, dh_msg2, dh_msg2_size, dh_msg3, dh_msg3_size, timeout);
+	return (long) p_exchange_report_ocall(sid, dh_msg2, dh_msg2_size, dh_msg3, dh_msg3_size, timeout);
 }
 
 sgx_status_t sgx_ocall(const unsigned int index, void *ms)
@@ -321,7 +321,7 @@ int create_session_ocall(uint32_t *sid, uint8_t *dh_msg1, uint32_t dh_msg1_size,
 
 	if ( l_create_session_ocall == -1 ) _undefined_symbol("create_session_ocall");
 
-	return (int) p_create_session_ocall(sid, dh_msg1, dh_msg1_size, timeout);
+	return (long) p_create_session_ocall(sid, dh_msg1, dh_msg1_size, timeout);
 }
 
 sgx_status_t sgx_get_extended_epid_group_id(uint32_t *p_extended_epid_group_id)
@@ -345,7 +345,7 @@ int sgx_thread_wait_untrusted_event_ocall(const void *self)
 
 	if ( l_sgx_thread_wait_untrusted_event_ocall == -1 ) _undefined_symbol("sgx_thread_wait_untrusted_event_ocall");
 
-	return (int) p_sgx_thread_wait_untrusted_event_ocall(self);
+	return (long) p_sgx_thread_wait_untrusted_event_ocall(self);
 }
 
 void sgx_oc_cpuidex(int *cpuinfo, int leaf, int subleaf)
@@ -393,7 +393,7 @@ int close_session_ocall(uint32_t sid, uint32_t timeout)
 
 	if ( l_close_session_ocall == -1 ) _undefined_symbol("close_session_ocall");
 
-	return (int) p_close_session_ocall(sid, timeout);
+	return (long) p_close_session_ocall(sid, timeout);
 }
 
 sgx_status_t sgx_destroy_enclave(const sgx_enclave_id_t enclave_id)
@@ -429,7 +429,7 @@ int sgx_thread_setwait_untrusted_events_ocall(const void *waiter, const void *se
 
 	if ( l_sgx_thread_setwait_untrusted_events_ocall == -1 ) _undefined_symbol("sgx_thread_setwait_untrusted_events_ocall");
 
-	return (int) p_sgx_thread_setwait_untrusted_events_ocall(waiter, self);
+	return (long) p_sgx_thread_setwait_untrusted_events_ocall(waiter, self);
 }
 
 sgx_status_t sgx_report_attestation_status(const sgx_platform_info_t *p_platform_info, int attestation_status, sgx_update_info_bit_t *p_update_info)
@@ -453,7 +453,7 @@ int sgx_thread_set_multiple_untrusted_events_ocall(const void **waiters, size_t 
 
 	if ( l_sgx_thread_set_multiple_untrusted_events_ocall == -1 ) _undefined_symbol("sgx_thread_set_multiple_untrusted_events_ocall");
 
-	return (int) p_sgx_thread_set_multiple_untrusted_events_ocall(waiters, total);
+	return (long) p_sgx_thread_set_multiple_untrusted_events_ocall(waiters, total);
 }
 
 int invoke_service_ocall(uint8_t *pse_message_req, uint32_t pse_message_req_size, uint8_t *pse_message_resp, uint32_t pse_message_resp_size, uint32_t timeout)
@@ -465,7 +465,7 @@ int invoke_service_ocall(uint8_t *pse_message_req, uint32_t pse_message_req_size
 
 	if ( l_invoke_service_ocall == -1 ) _undefined_symbol("invoke_service_ocall");
 
-	return (int) p_invoke_service_ocall(pse_message_req, pse_message_req_size, pse_message_resp, pse_message_resp_size, timeout);
+	return (long) p_invoke_service_ocall(pse_message_req, pse_message_req_size, pse_message_resp, pse_message_resp_size, timeout);
 }
 
 sgx_status_t sgx_get_quote(const sgx_report_t *p_report, sgx_quote_sign_type_t quote_type, const sgx_spid_t *p_spid, const sgx_quote_nonce_t *p_nonce, const uint8_t *p_sig_rl, uint32_t sig_rl_size, sgx_report_t *p_qe_report, sgx_quote_t *p_quote, uint32_t quote_size)

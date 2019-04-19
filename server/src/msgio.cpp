@@ -296,7 +296,7 @@ again1:
     }
     while(idx != toread_bytes) {
 again2:
-        bread = recv(s, *dest+idx, toread_bytes - idx, 0);
+        bread = recv(s, (void *)(((long)*dest)+idx), toread_bytes - idx, 0);
         if ( bread == -1 ) {
             if ( errno == EINTR ) goto again2;
             perror("recv");

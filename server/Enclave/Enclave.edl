@@ -95,6 +95,7 @@ enclave
 
 		// Min-Heap public ECALL interface
 		public void enclave_init_mh();
+		public void enclave_init_mh_f();
 
 		// Chi-Squared Test public ECALL interface
 		public void oa_init_chi_sq(uint16_t case_count, uint16_t control_count);

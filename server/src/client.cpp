@@ -1,3 +1,5 @@
+#include <getopt.h>
+#include <string.h>
 #include <vector>
 #include <string>
 #include <fstream>
@@ -31,8 +33,10 @@ void run_thread_csk(int thread_num)
 
 int parse(char* process_name, char* host_port, config_t &config)
 {
+	int retval;
+
     // call the script to generate args file
-    system("./get_args_from_settings.sh");
+    retval = system("./get_args_from_settings.sh");
 
     // parse args file
     std::vector<std::string> data{};
@@ -56,14 +60,14 @@ int parse(char* process_name, char* host_port, config_t &config)
     }
     auto ra_argv = new char*[data.size()];
     for(size_t i=0; i<data.size(); i++) {
-        ra_argv[i] = data.at(i).data();
+        ra_argv[i] = (char *)data.at(i).data();
     }
     auto ra_argc = data.size();
     parse_config(ra_argc, ra_argv, config);
     delete[] ra_argv;
 
     // clean up the args file 
-    system("rm _args_");
+	retval = system("rm _args_");
 }
 
 void app_rhht(MsgIO* msgio, config_t& config)
@@ -83,7 +87,7 @@ void app_rhht(MsgIO* msgio, config_t& config)
 	enclave_init_rhht(eid);
 
 	// Set the chunk size for receiving large data
-	uint32_t chunk_size = 1000000;
+	uint32_t chunk_size = 500000;
 
 	// Set app specific variables
 	uint32_t case_count = 2000;
@@ -95,12 +99,12 @@ void app_rhht(MsgIO* msgio, config_t& config)
 	size_t i;
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %d ...\n", i);
+		fprintf(stderr, "Processing file: %lu ...\n", (unsigned long) i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -121,7 +125,7 @@ void app_rhht(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 			enclave_decrypt_process_rhht(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -182,12 +186,12 @@ void app_oa(MsgIO* msgio, config_t& config)
 	size_t i;
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %d ...\n", i);
+		fprintf(stderr, "Processing file: %lu ...\n", (unsigned long) i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -208,7 +212,7 @@ void app_oa(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 			enclave_decrypt_process_oa(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -267,12 +271,12 @@ void app_cmtf(MsgIO* msgio, config_t& config)
 	size_t i;
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %d ...\n", i);
+		fprintf(stderr, "Processing file: %lu ...\n", (unsigned long) i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -293,7 +297,7 @@ void app_cmtf(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 			enclave_decrypt_process_cmtf(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -345,8 +349,8 @@ void app_csk(MsgIO* msgio, config_t& config)
 	// Set app specific variables
 	uint32_t case_count = 2000;
 	uint32_t control_count = 2000;
-	//uint32_t num_files = 2000;
-	uint32_t num_files = 44000;
+	uint32_t num_files = 2000;
+	//uint32_t num_files = 44000;
 
 	// Start timer
 	std::clock_t start;
@@ -358,12 +362,12 @@ void app_csk(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "First Pass, updating CSK ...\n");
 	for(i = 0; i < num_files; i++)
 	{
-		//fprintf(stderr, "First pass, processing file: %d ...\n", i);
+		fprintf(stderr, "First pass, processing file: %lu ...\n", (unsigned long) i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -384,7 +388,7 @@ void app_csk(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 			enclave_decrypt_update_csk(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -412,7 +416,7 @@ void app_csk(MsgIO* msgio, config_t& config)
 	// First, receive the total number of elements to be received
 	uint8_t* num_elems_buf;
 	size_t len_num_elems;
-	msgio->read_bin(&num_elems_buf, &len_num_elems);
+	msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 	uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 	// Now, receive and process next data chunk until all data is processed
@@ -433,7 +437,7 @@ void app_csk(MsgIO* msgio, config_t& config)
 		// Receive data (encrypted)
 		uint8_t* ciphertext;
 		size_t ciphertext_len;
-		msgio->read_bin(&ciphertext, &ciphertext_len);
+		msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 		// Make an ECALL to decrypt the data and process it inside the Enclave
 		enclave_decrypt_query_csk(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -492,12 +496,12 @@ void app_cms(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "First Pass, updating CMS ...\n");
 	for(i = 0; i < num_files; i++)
 	{
-		//fprintf(stderr, "First Pass, processing file: %d ...\n", i);
+		fprintf(stderr, "First Pass, processing file: %lu ...\n", (unsigned long) i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -518,7 +522,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 			enclave_decrypt_update_cms(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -534,7 +538,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 	// Stop timer and report time for the first pass over the data
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
 	fprintf(stderr, "First Pass (CMS) took: %lf seconds\n", duration);
-/*
+
 	// Initialize the min-heap within the enclave
 	enclave_init_mh(eid);
 
@@ -547,7 +551,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 	// First, receive the total number of elements to be received
 	uint8_t* num_elems_buf;
 	size_t len_num_elems;
-	msgio->read_bin(&num_elems_buf, &len_num_elems);
+	msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 	uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 	// Now, receive and process next data chunk until all data is processed
@@ -568,7 +572,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 		// Receive data (encrypted)
 		uint8_t* ciphertext;
 		size_t ciphertext_len;
-		msgio->read_bin(&ciphertext, &ciphertext_len);
+		msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 		// Make an ECALL to decrypt the data and process it inside the Enclave
 		enclave_decrypt_query_cms(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -582,7 +586,7 @@ void app_cms(MsgIO* msgio, config_t& config)
 	// Stop timer and report time for the second pass over the data
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
 	fprintf(stderr, "Second Pass (CMS) took: %lf seconds\n", duration);
-*/
+
 	// Make a final ECALL to receive the results and report results
 	/*
 	uint32_t* my_res;
@@ -634,7 +638,7 @@ void app_cms_mt(MsgIO* msgio, config_t& config)
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -655,7 +659,7 @@ void app_cms_mt(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			enclave_decrypt_store_cms(eid, ra_ctx, ciphertext, ciphertext_len);
 
@@ -703,7 +707,7 @@ void app_cms_mt(MsgIO* msgio, config_t& config)
 	// First, receive the total number of elements to be received
 	uint8_t* num_elems_buf;
 	size_t len_num_elems;
-	msgio->read_bin(&num_elems_buf, &len_num_elems);
+	msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 	uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 	// Now, receive and process next data chunk until all data is processed
@@ -724,7 +728,7 @@ void app_cms_mt(MsgIO* msgio, config_t& config)
 		// Receive data (encrypted)
 		uint8_t* ciphertext;
 		size_t ciphertext_len;
-		msgio->read_bin(&ciphertext, &ciphertext_len);
+		msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 		// Make an ECALL to decrypt the data and process it inside the Enclave
 		enclave_decrypt_query_cms(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -791,7 +795,7 @@ void app_cms_mt_ca(MsgIO* msgio, config_t& config)
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -812,7 +816,7 @@ void app_cms_mt_ca(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Decrypt and store data
 			enclave_decrypt_store_cms(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -860,7 +864,7 @@ void app_cms_mt_ca(MsgIO* msgio, config_t& config)
 	// First, receive the total number of elements to be received
 	uint8_t* num_elems_buf;
 	size_t len_num_elems;
-	msgio->read_bin(&num_elems_buf, &len_num_elems);
+	msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 	uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 	// Now, receive and process next data chunk until all data is processed
@@ -881,7 +885,7 @@ void app_cms_mt_ca(MsgIO* msgio, config_t& config)
 		// Receive data (encrypted)
 		uint8_t* ciphertext;
 		size_t ciphertext_len;
-		msgio->read_bin(&ciphertext, &ciphertext_len);
+		msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 		// Make an ECALL to decrypt the data and process it inside the Enclave
 		enclave_decrypt_query_cms(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -933,7 +937,7 @@ void app_csk_mt(MsgIO* msgio, config_t& config)
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -954,7 +958,7 @@ void app_csk_mt(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			enclave_decrypt_store_csk(eid, ra_ctx, ciphertext, ciphertext_len);
 
@@ -1002,7 +1006,7 @@ void app_csk_mt(MsgIO* msgio, config_t& config)
 	// First, receive the total number of elements to be received
 	uint8_t* num_elems_buf;
 	size_t len_num_elems;
-	msgio->read_bin(&num_elems_buf, &len_num_elems);
+	msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 	uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 	// Now, receive and process next data chunk until all data is processed
@@ -1023,7 +1027,7 @@ void app_csk_mt(MsgIO* msgio, config_t& config)
 		// Receive data (encrypted)
 		uint8_t* ciphertext;
 		size_t ciphertext_len;
-		msgio->read_bin(&ciphertext, &ciphertext_len);
+		msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 		// Make an ECALL to decrypt the data and process it inside the Enclave
 		enclave_decrypt_query_csk(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -1088,7 +1092,7 @@ void app_sketch_rhht(MsgIO* msgio, config_t& config)
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -1109,7 +1113,7 @@ void app_sketch_rhht(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 			enclave_decrypt_update_cms(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -1138,7 +1142,7 @@ void app_sketch_rhht(MsgIO* msgio, config_t& config)
 	// First, receive the total number of elements to be received
 	uint8_t* num_elems_buf;
 	size_t len_num_elems;
-	msgio->read_bin(&num_elems_buf, &len_num_elems);
+	msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 	uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 	// Now, receive and process next data chunk until all data is processed
@@ -1159,7 +1163,7 @@ void app_sketch_rhht(MsgIO* msgio, config_t& config)
 		// Receive data (encrypted)
 		uint8_t* ciphertext;
 		size_t ciphertext_len;
-		msgio->read_bin(&ciphertext, &ciphertext_len);
+		msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 		// Make an ECALL to decrypt the data and process it inside the Enclave
 		enclave_decrypt_query_cms(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -1183,12 +1187,12 @@ void app_sketch_rhht(MsgIO* msgio, config_t& config)
 
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %d ...\n", i);
+		fprintf(stderr, "Processing file: %lu ...\n", (unsigned long) i);
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -1209,7 +1213,7 @@ void app_sketch_rhht(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 			enclave_decrypt_process_sketch_rhht(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -1279,7 +1283,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -1300,7 +1304,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 			enclave_decrypt_update_mcsk(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -1385,7 +1389,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -1406,7 +1410,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 //			enclave_decrypt_update_csk(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -1430,7 +1434,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 	start = std::clock();
 
 	// Initialize the min-heap within the enclave
-        enclave_init_mh(eid);
+	enclave_init_mh_f(eid);
 
 	// Third Pass: Query the CSK structure
 	fprintf(stderr, "Third pass, querying CSK ...\n");
@@ -1438,7 +1442,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 	// First, receive the total number of elements to be received
 	uint8_t* num_elems_buf;
 	size_t len_num_elems;
-	msgio->read_bin(&num_elems_buf, &len_num_elems);
+	msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 	uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 	// Now, receive and process next data chunk until all data is processed
@@ -1459,7 +1463,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 		// Receive data (encrypted)
 		uint8_t* ciphertext;
 		size_t ciphertext_len;
-		msgio->read_bin(&ciphertext, &ciphertext_len);
+		msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 		// Make an ECALL to decrypt the data and process it inside the Enclave
 		enclave_decrypt_query_csk_f(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -1494,7 +1498,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
 		size_t len_num_elems;
-		msgio->read_bin(&num_elems_buf, &len_num_elems);
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
 		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
 		// Now, receive and process next data chunk until all data is processed
@@ -1515,7 +1519,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 			// Receive data (encrypted)
 			uint8_t* ciphertext;
 			size_t ciphertext_len;
-			msgio->read_bin(&ciphertext, &ciphertext_len);
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
 			enclave_decrypt_process_rhht_pcc(eid, ra_ctx, ciphertext, ciphertext_len);
@@ -1548,21 +1552,91 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 
 int main(int argc, char** argv)
 {
+	int opt;
+	int opt_index;
+
+	// IN PROGRESS: Default Parameters
+	char* host_port = NULL;
+	char* app_mode = NULL;
+
+	static struct option long_options[] =
+	{
+		{"PORT_NUMBER", optional_argument, 0, 'p'},
+		{"APP_MODE", required_argument, 0, 'm'},
+		{0, 0, 0, 0}
+	};
+
+	while(-1 != (opt = getopt_long(argc, argv, "hp:m:", long_options, &opt_index)))
+	{
+		switch(opt)
+		{
+			case 'h':
+				//print_help();
+				return 0;
+			case 'p':
+				host_port = strdup(optarg); // NOTE: strdup does malloc
+				break;
+			case 'm':
+				app_mode = strdup(optarg); // NOTE: strdup does malloc
+				break;
+			default:
+				//print_help();
+				return 0;
+		}
+	}
+
+	if(app_mode == NULL)
+	{
+		return 0;
+	}
+
+	optind = 1;
 	config_t config;
 	MsgIO* msgio;
-	parse(argv[0], argv[1], config);
+	parse(argv[0], host_port, config);
 	if(!remote_attestation(config, &msgio))
 	{
-		//app_oa(msgio,config);
-		//app_rhht(msgio, config);
-		//app_cmtf(msgio, config);
-		//app_cms(msgio, config);
-		//app_csk(msgio, config);
-		//app_cms_mt(msgio, config);
-		//app_cms_mt_ca(msgio, config);
-		//app_csk_mt(msgio, config);
-		//app_sketch_rhht(msgio, config);
-		app_svd_mcsk(msgio, config);
+		if(strcmp(app_mode, "oa") == 0)
+		{
+			app_oa(msgio,config);
+		}
+		else if(strcmp(app_mode, "rhht") == 0)
+		{
+			app_rhht(msgio, config);
+		}
+		else if(strcmp(app_mode, "cmtf") == 0)
+		{
+			app_cmtf(msgio, config);
+		}
+		else if(strcmp(app_mode, "cms") == 0)
+		{
+			app_cms(msgio, config);
+		}
+		else if(strcmp(app_mode, "csk") == 0)
+		{
+			app_csk(msgio, config);
+		}
+		else if(strcmp(app_mode, "cms_mt") == 0)
+		{
+			app_cms_mt(msgio, config);
+		}
+		else if(strcmp(app_mode, "cms_mt_ca") == 0)
+		{
+			app_cms_mt_ca(msgio, config);
+		}
+		else if(strcmp(app_mode, "csk_mt") == 0)
+		{
+			app_csk_mt(msgio, config);
+		}
+		else if(strcmp(app_mode, "sketch_rhht") == 0)
+		{
+			app_sketch_rhht(msgio, config);
+		}
+		else if(strcmp(app_mode, "svd_mcsk") == 0)
+		{
+			app_svd_mcsk(msgio, config);
+		}
+
 		finalize(msgio, config);
 	}
 }

@@ -84,7 +84,8 @@ char debug = 0;
 char verbose = 0;
 
 
-int parse_config(int argc, char *argv[], config_t &config) {
+int parse_config(int argc, char *argv[], config_t &config)
+{
     char flag_spid = 0;
     char flag_pubkey = 0;
     char flag_cert = 0;
@@ -292,7 +293,6 @@ int parse_config(int argc, char *argv[], config_t &config) {
     }
 
     /* We should have zero or one command-line argument remaining */
-
     argc-= optind;
     if ( argc > 1 ) usage();
 

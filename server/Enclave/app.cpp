@@ -29,10 +29,10 @@
 #define CMTF_NUM_BUCKETS	(1 << 21)
 
 #define CMS_WIDTH			(1 << 18)
-#define	CMS_DEPTH			8
+#define	CMS_DEPTH			12
 
-#define	CSK_WIDTH			(1 << 19)
-#define	CSK_DEPTH			13
+#define	CSK_WIDTH			(1 << 18)
+#define	CSK_DEPTH			12
 
 #define MCSK_WIDTH			2000
 #define MCSK_NUM_PC			2
@@ -2032,6 +2032,11 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 
 /***** BEGIN: Enclave Min-Heap Public ECALL Interface *****/
 void enclave_init_mh()
+{
+	allocate_heap(MH_INIT_CAPACITY);
+}
+
+void enclave_init_mh_f()
 {
 	allocate_heap_f(MH_INIT_CAPACITY);
 }
