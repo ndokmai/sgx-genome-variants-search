@@ -17,8 +17,20 @@
 #include "msgio.h"
 #include "misc.h"
 #include "params.h"
+#include "crypto.h"
+#include "fileio.h"
+#include "config.h"
+#include "settings.h"
+#include "hexutil.h"
 
 #define	MAX_FNAME	96
+
+static const unsigned char def_service_private_key[32] = {
+    0x90, 0xe7, 0x6c, 0xbb, 0x2d, 0x52, 0xa1, 0xce,
+    0x3b, 0x66, 0xde, 0x11, 0x43, 0x9c, 0x87, 0xec,
+    0x1f, 0x86, 0x6a, 0x3b, 0x65, 0xb6, 0xae, 0xea,
+    0xad, 0x57, 0x34, 0x53, 0xd1, 0x03, 0x8c, 0x01
+};
 
 int parse(char* process_name, char* port, config_t &config)
 {
@@ -314,16 +326,33 @@ void run_sp(MsgIO* msgio, int nf, char* fdir, char* ufname, uint32_t csz, int mo
 	return 0;
 }
 
-void new_parse(char* config_path, parameters** params)
+void new_parse(char* param_path, parameters** params, config_t& config)
 {
-	FILE* config;
+	FILE* param_file;
 	char buf[1024];
 	char var_name[256];
 
-	// Open configuration file
-	config = fopen(config_path, "r");
+	// Config stuff
+	char flag_spid = 0;
+	char flag_pubkey = 0;
+	char flag_cert = 0;
+	char flag_ca = 0;
+	char flag_usage = 0;
+	config.sigrl = NULL;
+	config.port = NULL;
+	config.flag_stdio = 0;
+	config.flag_noproxy = 0;
+	config.flag_prod = 0;
+
+	// Config defaults
+	memset(&config, 0, sizeof(config));
+	strncpy((char*) config.cert_type, "PEM", 3);
+	config.apiver = IAS_API_DEF_VERSION;
+
+	// Open parameter file
+	param_file = fopen(param_path, "r");
 	
-	while(fgets(buf, 1024, config) != NULL)
+	while(fgets(buf, 1024, param_file) != NULL)
 	{
 		if(buf[0] == '#')
 		{
@@ -349,6 +378,9 @@ void new_parse(char* config_path, parameters** params)
 				{
 					(*params)->port = (char*) malloc(sizeof(char) * (strlen(token) + 1));
 					strncpy((*params)->port, token, strlen(token) + 1);
+
+					// config
+					config.port = strdup(token);
 				}
 				else if(strcmp(var_name, "APP_MODE") == 0)
 				{
@@ -369,9 +401,83 @@ void new_parse(char* config_path, parameters** params)
 					(*params)->snp_ids = (char*) malloc(sizeof(char) * (strlen(token) + 1));
 					strncpy((*params)->snp_ids, token, strlen(token) + 1);
 				}
+				else if(strcmp(var_name, "QUERY_IAS_PRODUCTION") == 0)
+				{
+					if(atoi(token) == 1)
+					{
+						config.flag_prod = 1;
+					}
+				}
+				else if(strcmp(var_name, "SPID") == 0)
+				{
+					if(!from_hexstring((unsigned char*) &config.spid, (unsigned char*) token, 16))
+					{
+						exit(1);
+					}
+					flag_spid = 1;
+				}
+				else if(strcmp(var_name, "LINKABLE") == 0)
+				{
+					if(atoi(token) == 1)
+					{
+						config.quote_type = SGX_LINKABLE_SIGNATURE;
+					}
+				}
+				else if(strcmp(var_name, "RANDOM_NONCE") == 0)
+				{
+				}
+				else if(strcmp(var_name, "USE_PLATFORM_SERVICES") == 0)
+				{
+				}
+				else if(strcmp(var_name, "IAS_CLIENT_CERT_FILE") == 0)
+				{
+					config.cert_file = strdup(token);
+					if(config.cert_file == NULL)
+					{
+						exit(1);
+					}
+					flag_cert = 1;
+				}
+				else if(strcmp(var_name, "IAS_CLIENT_KEY_FILE") == 0)
+				{
+					config.cert_key_file = strdup(token);
+					if(config.cert_key_file == NULL)
+					{
+						exit(1);
+					}
+				}
+				else if(strcmp(var_name, "IAS_CLIENT_CERT_TYPE") == 0)
+				{
+					strncpy((char*) config.cert_type, token, 4);
+				}
+				else if(strcmp(var_name, "IAS_REPORT_SIGNING_CA_FILE") == 0)
+				{
+					if(!cert_load_file(&config.signing_ca, token))
+					{
+						crypto_perror("cert_load_file");
+						exit(1);
+					}
+
+					config.store = cert_init_ca(config.signing_ca);
+					if(config.store == NULL)
+					{
+						fprintf(stderr, "Could not init certificate store.\n");
+						exit(1);
+					}
+					flag_ca = 1;
+				}
+				else if(strcmp(var_name, "VERBOSE") == 0)
+				{
+					// Just for debugging, non critical
+				}
+				else if(strcmp(var_name, "DEBUG") == 0)
+				{
+					// Just for debugging, non critical
+				}
 				else
 				{
 					fprintf(stderr, "Unknown parameter in configuration file\n");
+					fprintf(stderr, "%s\n", var_name);
 					exit(1);
 				}
 				token_cnt = 0;
@@ -379,14 +485,42 @@ void new_parse(char* config_path, parameters** params)
 			token = strtok(NULL, "=");
 		}
 	}
+
+	fclose(param_file);
+
+	// Use the default CA bundle
+	config.ca_bundle = strdup(DEFAULT_CA_BUNDLE);
+
+	// Use hardcoded default key unless one is provided on the cmdline
+	config.service_private_key = key_private_from_bytes(def_service_private_key);
+
+	// Final checks before proceeding
+	if(!flag_spid)
+	{
+		fprintf(stderr, "SPID not set.\n");
+		exit(1);
+	}
+
+	if(!flag_cert)
+	{
+		fprintf(stderr, "IAS-CERT-FILE is required.\n");
+		exit(1);
+	}
+
+	if(!flag_ca)
+	{
+		fprintf(stderr, "IAS-SIGNING-CAFILE is required.\n");
+		exit(1);
+	}
 }
 
 int main(int argc, char** argv)
 {
-	// Parse the parameter file
+	// Parse the parameters
+	config_t config;
 	parameters* params;
 	init_params(&params);
-	new_parse(argv[1], &params);
+	new_parse(argv[1], &params, config);
 	print_params(params);
 
 	// If necessray parameters are missing, exit.
@@ -396,9 +530,8 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
-	config_t config;
 	MsgIO* msgio;
-	parse(argv[0], NULL, config);
+	//parse(argv[0], NULL, config);
 	
 	if(!connect(config, &msgio)) 
 	{
