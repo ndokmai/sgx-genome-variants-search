@@ -10,6 +10,8 @@
 
 #### License
 
+SkSES has an MIT License. However, SkSES contains parts of Intel SGX sample code, therefore also refer to Intel Sample Source Code license.
+
 # Intel&reg; Software Guard Extensions (SGX) Remote Attestation End-to-End Sample
 
 * [Introduction](#intro)
