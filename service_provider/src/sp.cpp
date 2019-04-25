@@ -16,6 +16,7 @@
 #include "ra.h"
 #include "msgio.h"
 #include "misc.h"
+#include "params.h"
 
 #define	MAX_FNAME	96
 
@@ -279,7 +280,7 @@ void run_sp(MsgIO* msgio, int nf, char* fdir, char* ufname, uint32_t csz, int mo
 			send_encrypted_vcf(msgio, nf, csz, index, filenames);
 			fprintf(stderr, "Completed sending vcf files in random order.\n");
 			send_encrypted_snpid(msgio, csz, ufname);
-			fprintf(stderr, "Completed sending SNP IDs to query.");
+			fprintf(stderr, "Completed sending SNP IDs to query.\n");
 			send_encrypted_vcf(msgio, nf, csz, index, filenames);
 			fprintf(stderr, "Completed sending vcf files in random order.\n");
 			break;
@@ -290,7 +291,7 @@ void run_sp(MsgIO* msgio, int nf, char* fdir, char* ufname, uint32_t csz, int mo
 			send_encrypted_vcf(msgio, nf, csz, index, filenames);
 			fprintf(stderr, "Completed sending vcf files in random order.\n");
 			send_encrypted_snpid(msgio, csz, ufname);
-			fprintf(stderr, "Completed sending SNP IDs to query.");
+			fprintf(stderr, "Completed sending SNP IDs to query.\n");
 			break;
 		// For popstrat correction and CA chi2 test
 		// First send the vcf files in random order two times
@@ -302,7 +303,7 @@ void run_sp(MsgIO* msgio, int nf, char* fdir, char* ufname, uint32_t csz, int mo
 			send_encrypted_vcf(msgio, nf, csz, index, filenames);
 			fprintf(stderr, "Completed sending vcf files in random order.\n");
 			send_encrypted_snpid(msgio, csz, ufname);
-			fprintf(stderr, "Completed sending SNP IDs to query.");
+			fprintf(stderr, "Completed sending SNP IDs to query.\n");
 			send_encrypted_vcf(msgio, nf, csz, index, filenames);
 			fprintf(stderr, "Completed sending vcf files in random order.\n");
 			break;
@@ -313,98 +314,118 @@ void run_sp(MsgIO* msgio, int nf, char* fdir, char* ufname, uint32_t csz, int mo
 	return 0;
 }
 
-int main(int argc, char** argv)
+void new_parse(char* config_path, parameters** params)
 {
-	int opt;
-	int opt_index;
+	FILE* config;
+	char buf[1024];
+	char var_name[256];
 
-	// IN PROGRESS: Default Parameters
-	char* host_port = NULL;
-	char* app_mode = NULL;
-	char* vcf_dir = NULL;
-	char* snpid_file = NULL;
-	int num_files = -1;
-
-	static struct option long_options[] =
+	// Open configuration file
+	config = fopen(config_path, "r");
+	
+	while(fgets(buf, 1024, config) != NULL)
 	{
-		{"PORT_NUMBER", optional_argument, 0, 'p'},
-		{"APP_MODE", required_argument, 0, 'm'},
-		{"NUM_FILES", required_argument, 0, 'n'},
-		{"VCF_DIR", required_argument, 0, 'd'},
-		{"SNP_IDS", optional_argument, 0, 'q'},
-	};
-
-	while(-1 != (opt = getopt_long(argc, argv, "hp:m:n:d:q:", long_options, &opt_index)))
-	{
-		switch(opt)
+		if(buf[0] == '#')
 		{
-			case 'h':
-				//print_help();
-				return 0;
-			case 'p':
-				host_port = strdup(optarg); // NOTE: strdup does malloc
-				break;
-			case 'd':
-				vcf_dir = strdup(optarg); // NOTE: strdup does malloc
-				break;
-			case 'q':
-				snpid_file = strdup(optarg); // NOTE: strdup does malloc
-				break;
-			case 'm':
-				app_mode = strdup(optarg); // NOTE: strdup does malloc
-				break;
-			case 'n':
-				num_files = stoi(optarg);
-				break;
-			default:
-				//print_help();
-				return 0;
+			continue;
+		}
+		buf[strcspn(buf, "\n")] = 0;
+	
+		int token_cnt = 0;
+		char* token = strtok(buf, "=");
+		while(token != NULL)
+		{
+			// First token: variable name
+			if(token_cnt == 0)
+			{
+				strncpy(var_name, token, strlen(token));
+				var_name[strlen(token)] = '\0';
+				token_cnt = 1;
+			}
+			// Second token: variable value
+			else if(token_cnt == 1)
+			{
+				if(strcmp(var_name, "PORT_NUMBER") == 0)
+				{
+					(*params)->port = (char*) malloc(sizeof(char) * (strlen(token) + 1));
+					strncpy((*params)->port, token, strlen(token) + 1);
+				}
+				else if(strcmp(var_name, "APP_MODE") == 0)
+				{
+					(*params)->app_mode = (char*) malloc(sizeof(char) * (strlen(token) + 1));
+					strncpy((*params)->app_mode, token, strlen(token) + 1);
+				}
+				else if(strcmp(var_name, "NUM_FILES") == 0)
+				{
+					(*params)->num_files = atoi(token);
+				}
+				else if(strcmp(var_name, "VCF_DIR") == 0)
+				{
+					(*params)->vcf_dir = (char*) malloc(sizeof(char) * (strlen(token) + 1));
+					strncpy((*params)->vcf_dir, token, strlen(token) + 1);
+				}
+				else if(strcmp(var_name, "SNP_IDS") == 0)
+				{
+					(*params)->snp_ids = (char*) malloc(sizeof(char) * (strlen(token) + 1));
+					strncpy((*params)->snp_ids, token, strlen(token) + 1);
+				}
+				else
+				{
+					fprintf(stderr, "Unknown parameter in configuration file\n");
+					exit(1);
+				}
+				token_cnt = 0;
+			}
+			token = strtok(NULL, "=");
 		}
 	}
+}
 
-	if(app_mode == NULL || vcf_dir == NULL || num_files == -1)
+int main(int argc, char** argv)
+{
+	// Parse the parameter file
+	parameters* params;
+	init_params(&params);
+	new_parse(argv[1], &params);
+	print_params(params);
+
+	// If necessray parameters are missing, exit.
+	if(params->app_mode == NULL || params->vcf_dir == NULL || params->num_files == -1)
 	{
-		return 0;
+		fprintf(stderr, "Missing parameters.\n");
+		exit(1);
 	}
 
-	optind = 1;
 	config_t config;
 	MsgIO* msgio;
-
-	// DEBUG
-	//std::cout << app_mode << "\t" << vcf_dir << std::endl;
-	//std::cout << "HERE-1" << std::endl;
-	parse(argv[0], host_port, config);
-	//std::cout << "HERE-2" << std::endl;
-
-	// Compressed and encrypted VCF files chr1: "/home/ckockan/test-data/chr1_all_ckz0/"
-	// Compressed and encrypted VCF files all chrs: "/mnt/big_part/ckockan/test-data/all_chr_ckz0/"
-	// Unique SNP IDs on chr1: "/home/ckockan/data-sgx-misc/chr1_uniq.ckz0"
-	// Unique SNP IDs all chrs: "/home/ckockan/data-sgx-misc/all_uniq.ckz0"
+	parse(argv[0], NULL, config);
+	
 	if(!connect(config, &msgio)) 
 	{
 		remote_attestation(config, msgio);
-		
-		if(strcmp(app_mode, "oa") == 0)
-			run_sp(msgio, num_files, vcf_dir, snpid_file, 500000, 0);
-		if(strcmp(app_mode, "rhht") == 0)
-			run_sp(msgio, num_files, vcf_dir, snpid_file, 500000, 0);
-		if(strcmp(app_mode, "cmtf") == 0)
-			run_sp(msgio, num_files, vcf_dir, snpid_file, 500000, 0);
-		if(strcmp(app_mode, "cms") == 0)
-			run_sp(msgio, num_files, vcf_dir, snpid_file, 500000, 11);
-		if(strcmp(app_mode, "csk") == 0)
-			run_sp(msgio, num_files, vcf_dir, snpid_file, 500000, 11);
+	
+		if(strcmp(params->app_mode, "oa") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 0);
+		if(strcmp(params->app_mode, "rhht") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 0);
+		if(strcmp(params->app_mode, "cmtf") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 0);
+		if(strcmp(params->app_mode, "cms") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 11);
+		if(strcmp(params->app_mode, "csk") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 11);
+
 		//if(strcmp(app_mode, "cms_mt") == 0)
 		//	run_sp(msgio);
 		//if(strcmp(app_mode, "cms_mt_ca") == 0)
 		//	run_sp(msgio);
 		//if(strcmp(app_mode, "csk_mt") == 0)
 		//	run_sp(msgio);
-		if(strcmp(app_mode, "sketch_rhht") == 0)
-			run_sp(msgio, num_files, vcf_dir, snpid_file, 500000, 1);
-		if(strcmp(app_mode, "svd_mcsk") == 0)
-			run_sp(msgio, num_files, vcf_dir, snpid_file, 500000, 2);
+
+		if(strcmp(params->app_mode, "sketch_rhht") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 1);
+		if(strcmp(params->app_mode, "svd_mcsk") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 2);
 		
 		//char* file_dir = ;
 		//FILE* uniq_snps = fopen(, "rb");
@@ -412,8 +433,7 @@ int main(int argc, char** argv)
 		//csz = 500000
 		finalize(msgio, config);
 		
-		fprintf(stderr, "Completed SP.\n");
+		fprintf(stderr, "Service Provider Closed.\n");
 	}
-
 	return 0;
 }

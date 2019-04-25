@@ -675,6 +675,7 @@ void enclave_clear_cms(sgx_ra_context_t ctx)
 	free(ptxt);
 }
 
+//
 void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num)
 {
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
