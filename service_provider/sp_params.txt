@@ -1,20 +1,18 @@
-# Compulsory Parameters
+#======================================================================
+# SkSES options
+#======================================================================
+
 PORT_NUMBER=7777
-APP_MODE=cms
+
+APP_MODE=sketch
+
 NUM_FILES=2000
+
 VCF_DIR=/home/ckockan/test-data/chr1_all_ckz0/
 
-# Optional Parameters
-#CHUNK_SIZE=500000
+CHUNK_SIZE=500000
+
 SNP_IDS=/home/ckockan/data-sgx-misc/chr1_uniq.ckz0
-#PRINT_DEBUG_INFO=1
-
-#Compressed and encrypted VCF files chr1: "/home/ckockan/test-data/chr1_all_ckz0/"
-#Compressed and encrypted VCF files all chrs: "/mnt/big_part/ckockan/test-data/all_chr_ckz0/"
-#Unique SNP IDs on chr1: "/home/ckockan/data-sgx-misc/chr1_uniq.ckz0"
-#Unique SNP IDs all chrs: "/home/ckockan/data-sgx-misc/all_uniq.ckz0"
-
-# Use Bourne Shell style syntax for this file.
 
 #======================================================================
 # Global options
@@ -25,7 +23,7 @@ SNP_IDS=/home/ckockan/data-sgx-misc/chr1_uniq.ckz0
 # and development, so if you change this you'll need to change them,
 # too.
 
-QUERY_IAS_PRODUCTION=0
+#QUERY_IAS_PRODUCTION=0
 
 # Your Service Provider ID. This should be a 32-character hex string.
 # [REQUIRED]
@@ -36,7 +34,7 @@ SPID=D305580E3EAE3CF43D3F2F763FA7EAC5
 # quotes. If you change this, you'll need to change SPID and
 # IAS_CLIENT_CERT_FILE, too.
 
-LINKABLE=0
+#LINKABLE=0
 
 #======================================================================
 # Client options
@@ -44,7 +42,7 @@ LINKABLE=0
 
 # Set to non-zero to have the client generate a random nonce.
 
-RANDOM_NONCE=1
+#RANDOM_NONCE=1
 
 # Set to non-zero to have the client generate a platform manifest.
 # This requires a PSE session, and thus support for platform
@@ -52,7 +50,7 @@ RANDOM_NONCE=1
 #
 # (Note that server hardware does not support platform services)
 
-USE_PLATFORM_SERVICES=0
+#USE_PLATFORM_SERVICES=0
 
 #======================================================================
 # Service provider (server) options
@@ -83,7 +81,7 @@ IAS_CLIENT_KEY_FILE=/home/ckockan/sgx-genome-variants-search/keys/client.key
 # Your IAS client certificate type. This defaults to PEM if you leave
 # it blank. Can be either PEM or P12.
 
-IAS_CLIENT_CERT_TYPE=
+#IAS_CLIENT_CERT_TYPE=
 
 # The Intel IAS SGX Report Signing CA file. You are sent this certificate
 # when you apply for access to SGX Developer Services at 
@@ -104,6 +102,7 @@ IAS_REPORT_SIGNING_CA_FILE=/home/ckockan/sgx-genome-variants-search/keys/Attesta
 
 #======================================================================
 # Debugging options
+#======================================================================
 
 # Set to non-zero for verbose output
 VERBOSE=0

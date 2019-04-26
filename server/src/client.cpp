@@ -138,7 +138,7 @@ void app_rhht(MsgIO* msgio, config_t& config)
 	}
 
 	// Make an ECALL to perform the chi-squared test
-	rhht_init_chi_sq(eid, case_count, control_count);
+	rhht_init_chi_sq(eid, case_count, control_count, 1000);
 
 	// Make an ECALL to receive the result
 	/*
@@ -225,7 +225,7 @@ void app_oa(MsgIO* msgio, config_t& config)
 	}
 
 	// Make an ECALL to perform the chi-squared test
-	oa_init_chi_sq(eid, case_count, control_count);
+	oa_init_chi_sq(eid, case_count, control_count, 1000);
 
 	// Make an ECALL to receive the result
 	/*
@@ -1230,15 +1230,15 @@ void app_sketch_rhht(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "Third Pass (RHHT/MH) took: %lf seconds\n", duration);
 
 	// Make an ECALL to perform the chi-squared test
-	rhht_init_chi_sq(eid, case_count, control_count);
+	rhht_init_chi_sq(eid, case_count, control_count, 1000);
 
 	// Make an ECALL to receive the result
-	uint32_t my_res[1000];
-	enclave_get_res_buf(eid, my_res);
-	for(int i = 0; i < 1000; i++)
-	{
-		fprintf(stderr, "%lu\n", (unsigned long) my_res[i]);
-	}
+	//uint32_t my_res[1000];
+	//enclave_get_res_buf(eid, my_res, 1000);
+	//for(int i = 0; i < 1000; i++)
+	//{
+	//	fprintf(stderr, "%lu\n", (unsigned long) my_res[i]);
+	//}
 }
 
 void app_svd_mcsk(MsgIO* msgio, config_t& config)
@@ -1535,14 +1535,14 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "Fourth Pass (PCC) took: %lf seconds\n", duration);
 
 	// Make an ECALL to perform the chi-squared test
-	rhht_init_chi_sq_ca(eid, 2000);
+	rhht_init_cat_chi_sq(eid, 2000, 1000);
 	//abort();
 
 	// Make an ECALL to receive the result
 	uint32_t my_ids[1000];
 	float my_counts[1000];
-	enclave_get_id_buf(eid, my_ids);
-	enclave_get_countf_buf(eid, my_counts);
+	enclave_get_id_buf(eid, my_ids, 1000);
+	enclave_get_res_buf(eid, my_counts, 1000);
 	for(int i = 0; i < 1000; i++)
 	{
 	        fprintf(stderr, "%lu\t%f\n", (unsigned long) my_ids[i], my_counts[i]);

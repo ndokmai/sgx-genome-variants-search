@@ -1,0 +1,4 @@
+#Compressed and encrypted VCF files chr1: "/home/ckockan/test-data/chr1_all_ckz0/"
+#Compressed and encrypted VCF files all chrs: "/mnt/big_part/ckockan/test-data/all_chr_ckz0/"
+#Unique SNP IDs on chr1: "/home/ckockan/data-sgx-misc/chr1_uniq.ckz0"
+#Unique SNP IDs all chrs: "/home/ckockan/data-sgx-misc/all_uniq.ckz0"

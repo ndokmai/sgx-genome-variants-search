@@ -34,15 +34,15 @@ enclave
 		// Public ECALL interface for getting results out of the enclave
 		// NOTE: This output is NOT encrypted since this a proof of concept
 		public void enclave_get_res([out, size = 524288] uint32_t* res);
-		public void enclave_get_res_buf([out, size = 4000] uint32_t* res);
+		//public void enclave_get_res_buf([out, size = 4000] uint32_t* res);
 		public void enclave_get_mcsk_res([out, size = 8004] float* my_res);
 		public void enclave_get_mcsk_sigma([out, size = 8000] float* my_res);
 		public void enclave_get_eig_buf([out, size = 16000] float* my_res);
 		public void enclave_ortho([out, size = 24] float* my_res);
 		public void mcsk_pull_row();
 		public void enclave_get_mem_used([out, size = 4] uint32_t* mem_usage);
-		public void enclave_get_id_buf([out, size = 4000] uint32_t* id);
-		public void enclave_get_countf_buf([out, size = 4000] float* countf);
+		public void enclave_get_id_buf([out, size = 4000] uint32_t* id, int k);
+		public void enclave_get_res_buf([out, size = 4000] float* countf, int k);
 
 		// Open-Addressing Hash-Table public ECALL interface
 		public void enclave_init_oa();
@@ -98,10 +98,10 @@ enclave
 		public void enclave_init_mh_f();
 
 		// Chi-Squared Test public ECALL interface
-		public void oa_init_chi_sq(uint16_t case_count, uint16_t control_count);
-		public void rhht_init_chi_sq(uint16_t case_count, uint16_t control_count);
-		public void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total);
-		public void rhht_init_chi_sq_ca(uint16_t count_total);
+		public void oa_init_chi_sq(uint16_t case_count, uint16_t control_count, int k);
+		public void rhht_init_chi_sq(uint16_t case_count, uint16_t control_count, int k);
+		public void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total, int k);
+		public void rhht_init_cat_chi_sq(uint16_t count_total, int k);
 	};
     
 	untrusted

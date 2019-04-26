@@ -1,5 +1,5 @@
-#ifndef _PARAMS_H
-#define _PARAMS_H
+#ifndef _SP_PARAMS_H
+#define _SP_PARAMS_H
 
 typedef struct _params
 {
@@ -8,6 +8,7 @@ typedef struct _params
 	char* vcf_dir;
 	char* snp_ids;
 	int num_files;
+	int chunk_size;
 } parameters;
 
 void init_params(parameters**);

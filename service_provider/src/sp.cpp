@@ -16,12 +16,13 @@
 #include "ra.h"
 #include "msgio.h"
 #include "misc.h"
-#include "params.h"
+#include "sp_params.h"
 #include "crypto.h"
 #include "fileio.h"
 #include "config.h"
 #include "settings.h"
 #include "hexutil.h"
+#include "logfile.h"
 
 #define	MAX_FNAME	96
 
@@ -344,6 +345,10 @@ void new_parse(char* param_path, parameters** params, config_t& config)
 	config.flag_noproxy = 0;
 	config.flag_prod = 0;
 
+	// log
+	fplog = create_logfile("sp.log");
+	fprintf(fplog, "Server log started\n");
+
 	// Config defaults
 	memset(&config, 0, sizeof(config));
 	strncpy((char*) config.cert_type, "PEM", 3);
@@ -401,13 +406,17 @@ void new_parse(char* param_path, parameters** params, config_t& config)
 					(*params)->snp_ids = (char*) malloc(sizeof(char) * (strlen(token) + 1));
 					strncpy((*params)->snp_ids, token, strlen(token) + 1);
 				}
-				else if(strcmp(var_name, "QUERY_IAS_PRODUCTION") == 0)
+				else if(strcmp(var_name, "CHUNK_SIZE") == 0)
+				{
+					(*params)->chunk_size = atoi(token);
+				}
+				/*else if(strcmp(var_name, "QUERY_IAS_PRODUCTION") == 0)
 				{
 					if(atoi(token) == 1)
 					{
 						config.flag_prod = 1;
 					}
-				}
+				}*/
 				else if(strcmp(var_name, "SPID") == 0)
 				{
 					if(!from_hexstring((unsigned char*) &config.spid, (unsigned char*) token, 16))
@@ -415,20 +424,22 @@ void new_parse(char* param_path, parameters** params, config_t& config)
 						exit(1);
 					}
 					flag_spid = 1;
-				}
+				}/*
 				else if(strcmp(var_name, "LINKABLE") == 0)
 				{
 					if(atoi(token) == 1)
 					{
 						config.quote_type = SGX_LINKABLE_SIGNATURE;
 					}
-				}
+				}*/
+				/*
 				else if(strcmp(var_name, "RANDOM_NONCE") == 0)
 				{
 				}
 				else if(strcmp(var_name, "USE_PLATFORM_SERVICES") == 0)
 				{
 				}
+				*/
 				else if(strcmp(var_name, "IAS_CLIENT_CERT_FILE") == 0)
 				{
 					config.cert_file = strdup(token);
@@ -537,16 +548,10 @@ int main(int argc, char** argv)
 	{
 		remote_attestation(config, msgio);
 	
-		if(strcmp(params->app_mode, "oa") == 0)
-			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 0);
-		if(strcmp(params->app_mode, "rhht") == 0)
-			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 0);
-		if(strcmp(params->app_mode, "cmtf") == 0)
-			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 0);
-		if(strcmp(params->app_mode, "cms") == 0)
-			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 11);
-		if(strcmp(params->app_mode, "csk") == 0)
-			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 11);
+		if(strcmp(params->app_mode, "topk") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 0);
+		if(strcmp(params->app_mode, "sketch") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 11);
 
 		//if(strcmp(app_mode, "cms_mt") == 0)
 		//	run_sp(msgio);
@@ -555,17 +560,14 @@ int main(int argc, char** argv)
 		//if(strcmp(app_mode, "csk_mt") == 0)
 		//	run_sp(msgio);
 
-		if(strcmp(params->app_mode, "sketch_rhht") == 0)
-			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 1);
-		if(strcmp(params->app_mode, "svd_mcsk") == 0)
-			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, 500000, 2);
+		if(strcmp(params->app_mode, "sketch_topk") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 1);
+		if(strcmp(params->app_mode, "pca_sketch") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 2);
+		//if(strcmp(params->app_mode, "sketch_pca_topk") == 0)
+		//	run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 2);
 		
-		//char* file_dir = ;
-		//FILE* uniq_snps = fopen(, "rb");
-		//"/home/ckockan/test-data/chr1_all_ckz0/"
-		//csz = 500000
 		finalize(msgio, config);
-		
 		fprintf(stderr, "Service Provider Closed.\n");
 	}
 	return 0;

@@ -45,7 +45,7 @@
 // Global Enclave Buffers
 // TODO: Dynamically allocating and keeping track of this might be a good idea
 float enclave_mcsk_buf[2001];
-uint32_t enclave_res_buf[ENC_RES_BUF_LEN];
+//uint32_t enclave_res_buf[ENC_RES_BUF_LEN];
 float enclave_eig_buf[4000];
 float ortho_res[6];
 uint8_t* ptxt;
@@ -57,7 +57,7 @@ float* phenotypes;
 float *u;
 float **enclave_eig;
 uint32_t enc_id_buf[ENC_RES_BUF_LEN];
-float enc_countf_buf[ENC_RES_BUF_LEN];
+float enc_res_buf[ENC_RES_BUF_LEN];
 
 void enclave_reset_file_idx()
 {
@@ -1275,7 +1275,7 @@ void enclave_decrypt_query_csk_f(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 			// Updated if already in
 			// If the heap is full, inserted if its absolute difference is larger than the root
 //			enc_id_buf[i] = rs_id_uint;
-//			enc_countf_buf[i] = est_diff;
+//			enc_res_buf[i] = est_diff;
 			mh_insert_f(rs_id_uint, est_diff);
 //			if(i == 1000)
 //			{
@@ -1691,7 +1691,6 @@ void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 /***** END: Enclave Chained-Move-to-Front Hash Table Public Interface *****/
 
 /***** BEGIN: Enclave Chi-Squared Test Functions *****/
-
 // poz(): probability of normal z value
 // This function was taken from an adaptation of: 
 // Ibbetson D, Algorithm 209 Collected Algorithms of the CACM 1963 p. 616
@@ -1795,7 +1794,7 @@ float chi_sq(uint16_t case_min, uint16_t control_min, uint16_t case_total, uint1
 	return chi_sq_val;
 }
 
-float chi_sq_ca(uint16_t ssqg, uint16_t total, float dotprod, float sx, float sy, float sy2, float *pc_projections)
+float cat_chi_sq(uint16_t ssqg, uint16_t total, float dotprod, float sx, float sy, float sy2, float *pc_projections)
 {
 	float chi_sq_val = 0, sx2 = 0;
 	sx2 = ssqg;
@@ -1808,12 +1807,11 @@ float chi_sq_ca(uint16_t ssqg, uint16_t total, float dotprod, float sx, float sy
 	return chi_sq_val;
 }
 
-void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
+void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 {
-	uint32_t k = 1000;
 	uint32_t top_k_ids[k];
 	float top_k_chi_sq[k];
-	uint32_t num_used = 0;
+	int num_used = 0;
 	float chi_sq_val;
 	for(uint32_t i = 0; i < rhht_snp_table->capacity; i++)
 	{
@@ -1829,12 +1827,11 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 				top_k_chi_sq[num_used] = chi_sq_val;
 				num_used = num_used + 1;
 			}
-			/*
 			else
 			{
 				// Find the index of the minimum chi squared value in the top-k array
-				uint8_t index_min = 0;
-				for(uint8_t j = 1; j < 10; j++)
+				int index_min = 0;
+				for(int j = 1; j < k; j++)
 				{
 					if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
 					{
@@ -1842,32 +1839,32 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total)
 					}
 				}
 
-				// If the chi squared value of the current element is greater than that of index min, replace
+				// If the chi squared value of the current element is greater than that of index_min
+				// Replace the element at index_min by the current element 
 				if(chi_sq_val > top_k_chi_sq[index_min])
 				{
 					top_k_ids[index_min] = rhht_snp_table->buffer[i].key;
 					top_k_chi_sq[index_min] = chi_sq_val;
 				}
 			}
-			*/
 		}
 	}
 	
-	for(uint32_t i = 0; i < k; i++)
+	for(int i = 0; i < k; i++)
 	{
 		//double pval = pochisq((double) top_k_chi_sq[i]);
 
-		// Proper output test
-		enclave_res_buf[i] = top_k_ids[i];
+		// Fill in output buffer
+		enc_id_buf[i] = top_k_ids[i];
+		enc_res_buf[i] = top_k_chi_sq[i];
 	}
 }
 
-void rhht_init_chi_sq_ca(uint16_t total)
+void rhht_init_cat_chi_sq(uint16_t total, int k)
 {
-	uint32_t k = 1000;
 	uint32_t top_k_ids[k];
 	float top_k_chi_sq[k];
-	uint32_t num_used = 0;
+	int num_used = 0;
 	float chi_sq_val;
 
 	float sy = 0;
@@ -1882,7 +1879,7 @@ void rhht_init_chi_sq_ca(uint16_t total)
 		if(rhht_snp_table_pcc->buffer[i].key != 0)
 		{
 			// Calculate the chi squared value
-			chi_sq_val = chi_sq_ca(rhht_snp_table_pcc->buffer[i].ssqg, total, rhht_snp_table_pcc->buffer[i].dotprod, \
+			chi_sq_val = cat_chi_sq(rhht_snp_table_pcc->buffer[i].ssqg, total, rhht_snp_table_pcc->buffer[i].dotprod, \
 						rhht_snp_table_pcc->buffer[i].sx, sy, sy2, rhht_snp_table_pcc->buffer[i].pc_projections);
 
 			// If the top-k array is not full, add current snp without any checks
@@ -1895,7 +1892,7 @@ void rhht_init_chi_sq_ca(uint16_t total)
 			else
 			{
 				// Find the index of the minimum chi squared value in the top-k array
-				uint32_t index_min = 0;
+				int index_min = 0;
 				for(uint32_t j = 1; j < k; j++)
 				{
 					if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
@@ -1904,7 +1901,8 @@ void rhht_init_chi_sq_ca(uint16_t total)
 					}
 				}
 
-				// If the chi squared value of the current element is greater than that of index min, replace
+				// If the chi squared value of the current element is greater than that of index_min
+				// Replace the element at index_min by the current element
 				if(chi_sq_val > top_k_chi_sq[index_min])
 				{
 					top_k_ids[index_min] = rhht_snp_table_pcc->buffer[i].key;
@@ -1914,21 +1912,21 @@ void rhht_init_chi_sq_ca(uint16_t total)
 		}
 	}
 	
-	for(uint32_t i = 0; i < k; i++)
+	for(int i = 0; i < k; i++)
 	{
 		//double pval = pochisq((double) top_k_chi_sq[i]);
 
-		// Proper output test
+		// Fill in output buffer 
 		enc_id_buf[i] = top_k_ids[i];
-		enc_countf_buf[i] = top_k_chi_sq[i];
+		enc_res_buf[i] = top_k_chi_sq[i];
 	}
 }
 
-void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total)
+void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 {
-	uint32_t top_k_ids[10];
-	float top_k_chi_sq[10];
-	uint8_t num_used = 0;
+	uint32_t top_k_ids[k];
+	float top_k_chi_sq[k];
+	int num_used = 0;
 	float chi_sq_val;
 	for(uint32_t i = 0; i < cmtf_snp_table->num_buckets; i++)
 	{
@@ -1941,7 +1939,7 @@ void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total)
 				chi_sq_val = chi_sq(temp->case_count, temp->control_count, case_total, control_total);
 
 				// If the top-k array is not full, add current snp without any checks
-				if(num_used < 10)
+				if(num_used < k)
 				{
 					top_k_ids[num_used] = temp->key;
 					top_k_chi_sq[num_used] = chi_sq_val;
@@ -1950,8 +1948,8 @@ void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total)
 				else
 				{
 					// Find the index of the minimum chi squared value in the top-k array
-					uint8_t index_min = 0;
-					for(uint8_t j = 1; j < 10; j++)
+					int index_min = 0;
+					for(int j = 1; j < k; j++)
 					{
 						if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
 						{
@@ -1959,7 +1957,8 @@ void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total)
 						}
 					}
 
-					// If the chi squared value of the current element is greater than that of index min, replace
+					// If the chi squared value of the current element is greater than that of index_min
+					// Replace the element at index_min by the current element
 					if(chi_sq_val > top_k_chi_sq[index_min])
 					{
 						top_k_ids[index_min] = temp->key;
@@ -1971,20 +1970,21 @@ void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total)
 		}
 	}
 
-	for(uint8_t i = 0; i < 10; i++)
+	for(int i = 0; i < k; i++)
 	{
-		double pval = pochisq((double) top_k_chi_sq[i]);
+		//double pval = pochisq((double) top_k_chi_sq[i]);
 
-		// Proper output test
-		//enclave_res_buf[i] = top_k_ids[i];
+		// Fill in output buffer 
+		enc_id_buf[i] = top_k_ids[i];
+		enc_res_buf[i] = top_k_chi_sq[i];
 	}
 }
 
-void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
+void oa_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 {
-	uint32_t top_k_ids[10];
-	float top_k_chi_sq[10];
-	uint32_t num_used = 0;
+	uint32_t top_k_ids[k];
+	float top_k_chi_sq[k];
+	int num_used = 0;
 	float chi_sq_val;
 	for(uint32_t i = 0; i < oaht->capacity; i++)
 	{
@@ -1994,7 +1994,7 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 			chi_sq_val = chi_sq(oaht->buffer[i].case_count, oaht->buffer[i].control_count, case_total, control_total);
 
 			// If the top-k array is not full, add current snp without any checks
-			if(num_used < 10)
+			if(num_used < k)
 			{
 				top_k_ids[num_used] = oaht->buffer[i].key;
 				top_k_chi_sq[num_used] = chi_sq_val;
@@ -2003,8 +2003,8 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 			else
 			{
 				// Find the index of the minimum chi squared value in the top-k array
-				uint8_t index_min = 0;
-				for(uint8_t j = 1; j < 10; j++)
+				int index_min = 0;
+				for(int j = 1; j < k; j++)
 				{
 					if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
 					{
@@ -2012,7 +2012,8 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 					}
 				}
 
-				// If the chi squared value of the current element is greater than that of index min, replace
+				// If the chi squared value of the current element is greater than that of index_min
+				// Replace the element at index_min by the current element
 				if(chi_sq_val > top_k_chi_sq[index_min])
 				{
 					top_k_ids[index_min] = oaht->buffer[i].key;
@@ -2021,12 +2022,14 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total)
 			}
 		}
 	}
-	for(uint8_t i = 0; i < 10; i++)
-	{
-		double pval = pochisq((double) top_k_chi_sq[i]);
 
-		// Proper output test
-		//enclave_res_buf[i] = top_k_ids[i];
+	for(int i = 0; i < k; i++)
+	{
+		//double pval = pochisq((double) top_k_chi_sq[i]);
+
+		// Fill in output buffer 
+		enc_id_buf[i] = top_k_ids[i];
+		enc_res_buf[i] = top_k_chi_sq[i];
 	}
 }
 /***** END: Enclave Chi-Sqaured Test Functions *****/
@@ -2052,13 +2055,13 @@ void enclave_get_res(uint32_t* res)
 	}
 }
 
-void enclave_get_res_buf(uint32_t* res_buf)
+/*void enclave_get_res_buf(uint32_t* res_buf)
 {
 	for(size_t i = 0; i < 1000; i++)
 	{
 		res_buf[i] = enclave_res_buf[i];
 	}
-}
+}*/
 /***** END: Enclave Result/Output Public ECALL Interface *****/
 
 void enclave_get_mcsk_res(float* my_res)
@@ -2098,18 +2101,18 @@ void enclave_get_mem_used(uint32_t* mem_usage)
 	mem_usage[0] = mem_used;
 }
 
-void enclave_get_id_buf(uint32_t* id)
+void enclave_get_id_buf(uint32_t* id, int k)
 {
-	for(size_t i = 0; i < 1000; i++)
+	for(int i = 0; i < k; i++)
 	{
 		id[i] = enc_id_buf[i];
 	}
 }
 
-void enclave_get_countf_buf(float* countf)
+void enclave_get_res_buf(float* countf, int k)
 {
-	for(size_t i = 0; i < 1000; i++)
+	for(int i = 0; i < k; i++)
 	{
-		countf[i] = enc_countf_buf[i];
+		countf[i] = enc_res_buf[i];
 	}
 }
