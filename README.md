@@ -8,6 +8,14 @@
 
 #### Sample Run
 
+```
+./sp sp_params.txt
+```
+
+```
+./app app_params.txt
+```
+
 #### License
 
 SkSES has an MIT License. However, SkSES contains parts of Intel SGX sample code, therefore also refers to Intel Sample Source Code license.
