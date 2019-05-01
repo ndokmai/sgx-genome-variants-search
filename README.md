@@ -7,16 +7,11 @@
 #### Usage
 
 #### Sample Run
-To run SkSES, the first step is to set up its parameters from both service_provider and server side(s). Example parameter settings are provided in the corresponding directories, e.g. ```/service_provider``` and ```/server```.
+To run SkSES, the first step is to set up its parameters from both service_provider and server side(s). Example parameter settings are provided in the corresponding directories, i.e. ```/service_provider``` and ```/server```.
 
-For more information about each parameter, please consult ```/service_provider/src/sp_param.h``` and ```/service_provider/src/sp_param.h```.
+For more information about the interpretations of each parameter, please consult ```/service_provider/src/sp_param.h``` and ```/service_provider/src/sp_param.h```.
 
-For a test run, update the following parameters according to your network environment and leave the rest:
-
-    PORT_*
-    IP_ADDR_*
-
-Make sure that the specified ports are not blocked by the firewall.
+For a test run, users need to update the port number according to your network environment and make sure that the specified ports are not blocked by the firewall.
 
 Once the parameters are set up, from the service provider side, simply run
 ```
