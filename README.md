@@ -7,14 +7,27 @@
 #### Usage
 
 #### Sample Run
+To run SkSES, the first step is to set up its parameters from both service_provider and server side(s). Example parameter settings are provided in the corresponding directories, e.g. ```/service_provider``` and ```/server```.
 
+For more information about each parameter, please consult ```/service_provider/src/sp_param.h``` and ```/service_provider/src/sp_param.h```.
+
+For a test run, update the following parameters according to your network environment and leave the rest:
+
+    PORT_*
+    IP_ADDR_*
+
+Make sure that the specified ports are not blocked by the firewall.
+
+Once the parameters are set up, from the service provider side, simply run
 ```
 ./sp sp_params.txt
 ```
 
+Then, run 
 ```
 ./app app_params.txt
 ```
+from the server side.
 
 #### License
 
