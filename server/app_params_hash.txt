@@ -1,0 +1,19 @@
+#======================================================================
+# SkSES options
+#======================================================================
+
+PORT_NUMBER=7777
+
+APP_MODE=basic
+
+HASH_OPTION=rhht
+
+NUM_FILES=2000
+
+NUM_CASE_FILES=1000
+
+CHUNK_SIZE=500000
+
+NUM_TOP_SNPS=100
+
+OUTPUT_FILE=./top_snps

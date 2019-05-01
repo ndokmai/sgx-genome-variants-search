@@ -2116,3 +2116,11 @@ void enclave_get_res_buf(float* countf, int k)
 		countf[i] = enc_res_buf[i];
 	}
 }
+
+/*void enclave_get_sketch_mh(uint32_t* id, int l)
+{
+	for(int i = 0; i < l; i++)
+	{
+		id[i] = enc_res_buf[i];
+	}
+}*/

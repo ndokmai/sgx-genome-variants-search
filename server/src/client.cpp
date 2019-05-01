@@ -10,6 +10,7 @@
 #include "ra.h"
 #include "Enclave_u.h"
 #include "msgio.h"
+#include "app_params.h"
 
 int global_eid;
 
@@ -70,7 +71,7 @@ int parse(char* process_name, char* host_port, config_t &config)
 	retval = system("rm _args_");
 }
 
-void app_rhht(MsgIO* msgio, config_t& config)
+void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, char *ofn)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -86,15 +87,12 @@ void app_rhht(MsgIO* msgio, config_t& config)
 	// Make an ECALL to initialize the Enclave data structures
 	enclave_init_rhht(eid);
 
-	// Set the chunk size for receiving large data
-	uint32_t chunk_size = 500000;
-
 	// Set app specific variables
-	uint32_t case_count = 2000;
-	uint32_t control_count = 2000;
-	uint32_t num_case_files = case_count / 2;
-	uint32_t num_control_files = control_count / 2;
-	uint32_t num_files = num_case_files + num_control_files;
+	uint32_t num_files = nf;
+	uint32_t num_case_files = nf_case;
+	uint32_t num_control_files = nf - nf_case;
+	uint32_t case_count = (num_case_files << 1);
+	uint32_t control_count = (num_control_files << 1);
 
 	size_t i;
 	for(i = 0; i < num_files; i++)
@@ -113,13 +111,13 @@ void app_rhht(MsgIO* msgio, config_t& config)
 		while(num_elems_rcvd != num_elems)
 		{
 			size_t to_read_elems = 0;
-			if(num_elems_rem < chunk_size)
+			if(num_elems_rem < csz)
 			{
 				to_read_elems = num_elems_rem;
 			}
 			else
 			{
-				to_read_elems = chunk_size;
+				to_read_elems = csz;
 			}
 		
 			// Receive data (encrypted)
@@ -138,17 +136,20 @@ void app_rhht(MsgIO* msgio, config_t& config)
 	}
 
 	// Make an ECALL to perform the chi-squared test
-	rhht_init_chi_sq(eid, case_count, control_count, 1000);
+	rhht_init_chi_sq(eid, case_count, control_count, k);
 
 	// Make an ECALL to receive the result
-	/*
-	uint32_t my_res[10];
-	enclave_get_res_buf(eid, my_res);
-	for(int i = 0; i < 10; i++)
+	uint32_t top_ids[k];
+	float chi_sq_vals[k];
+	enclave_get_id_buf(eid, top_ids, k);
+	enclave_get_res_buf(eid, chi_sq_vals, k);
+	FILE* file = fopen(ofn, "w");
+	fprintf(file, "SNP_ID\tCHI_SQ_VAL\n");
+	for(int i = 0; i < k; i++)
 	{
-		fprintf(stderr, "%lu\n", (unsigned long) my_res[i]);
+		fprintf(file, "%u\t%.4f\n", top_ids[i], chi_sq_vals[i]);
 	}
-	*/
+	fclose(file);
 
 	// Stop timer
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
@@ -157,7 +158,7 @@ void app_rhht(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "time: %lf\n", duration);
 }
 
-void app_oa(MsgIO* msgio, config_t& config)
+void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, char *ofn)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -173,15 +174,12 @@ void app_oa(MsgIO* msgio, config_t& config)
 	// Make an ECALL to initialize the Enclave data structures
 	enclave_init_oa(eid);
 
-	// Set the chunk size for receiving large data
-	uint32_t chunk_size = 1000000;
-
 	// Set app specific variables
-	uint32_t case_count = 2000;
-	uint32_t control_count = 2000;
-	uint32_t num_case_files = case_count / 2;
-	uint32_t num_control_files = control_count / 2;
-	uint32_t num_files = num_case_files + num_control_files;
+	uint32_t num_files = nf;
+	uint32_t num_case_files = nf_case;
+	uint32_t num_control_files = nf - nf_case;
+	uint32_t case_count = (num_case_files << 1);
+	uint32_t control_count = (num_control_files << 1);
 
 	size_t i;
 	for(i = 0; i < num_files; i++)
@@ -200,13 +198,13 @@ void app_oa(MsgIO* msgio, config_t& config)
 		while(num_elems_rcvd != num_elems)
 		{
 			size_t to_read_elems = 0;
-			if(num_elems_rem < chunk_size)
+			if(num_elems_rem < csz)
 			{
 				to_read_elems = num_elems_rem;
 			}
 			else
 			{
-				to_read_elems = chunk_size;
+				to_read_elems = csz;
 			}
 		
 			// Receive data (encrypted)
@@ -225,17 +223,20 @@ void app_oa(MsgIO* msgio, config_t& config)
 	}
 
 	// Make an ECALL to perform the chi-squared test
-	oa_init_chi_sq(eid, case_count, control_count, 1000);
+	oa_init_chi_sq(eid, case_count, control_count, k);
 
 	// Make an ECALL to receive the result
-	/*
-	uint32_t my_res[10];
-	enclave_get_res_buf(eid, my_res);
-	for(int i = 0; i < 10; i++)
+	uint32_t top_ids[k];
+	float chi_sq_vals[k];
+	enclave_get_id_buf(eid, top_ids, k);
+	enclave_get_res_buf(eid, chi_sq_vals, k);
+	FILE* file = fopen(ofn, "w");
+	fprintf(file, "SNP_ID\tCHI_SQ_VAL\n");
+	for(int i = 0; i < k; i++)
 	{
-		fprintf(stderr, "%lu\n", (unsigned long) my_res[i]);
+		fprintf(file, "%u\t%.4f\n", top_ids[i], chi_sq_vals[i]);
 	}
-	*/
+	fclose(file);
 
 	// Stop timer
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
@@ -244,7 +245,7 @@ void app_oa(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "time: %lf\n", duration);
 }
 
-void app_cmtf(MsgIO* msgio, config_t& config)
+void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, char *ofn)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -260,13 +261,12 @@ void app_cmtf(MsgIO* msgio, config_t& config)
 	// Make an ECALL to initialize the Enclave data structures
 	enclave_init_cmtf(eid);
 
-	// Set the chunk size for receiving large data
-	uint32_t chunk_size = 500000;
-
 	// Set app specific variables
-	uint32_t case_count = 2000;
-	uint32_t control_count = 2000;
-	uint32_t num_files = 2000;
+	uint32_t num_files = nf;
+	uint32_t num_case_files = nf_case;
+	uint32_t num_control_files = nf - nf_case;
+	uint32_t case_count = (num_case_files << 1);
+	uint32_t control_count = (num_control_files << 1);
 
 	size_t i;
 	for(i = 0; i < num_files; i++)
@@ -285,13 +285,13 @@ void app_cmtf(MsgIO* msgio, config_t& config)
 		while(num_elems_rcvd != num_elems)
 		{
 			size_t to_read_elems = 0;
-			if(num_elems_rem < chunk_size)
+			if(num_elems_rem < csz)
 			{
 				to_read_elems = num_elems_rem;
 			}
 			else
 			{
-				to_read_elems = chunk_size;
+				to_read_elems = csz;
 			}
 		
 			// Receive data (encrypted)
@@ -310,19 +310,20 @@ void app_cmtf(MsgIO* msgio, config_t& config)
 	}
 
 	// Make an ECALL to perform the chi-squared test
-//	cmtf_init_chi_sq(eid, case_count, control_count);
+	cmtf_init_chi_sq(eid, case_count, control_count, k);
 
 	// Make an ECALL to receive the result
-	/*
-	uint32_t my_res[10];
-	enclave_get_res_buf(eid, my_res);
-	for(int i = 0; i < 10; i++)
+	uint32_t top_ids[k];
+	float chi_sq_vals[k];
+	enclave_get_id_buf(eid, top_ids, k);
+	enclave_get_res_buf(eid, chi_sq_vals, k);
+	FILE* file = fopen(ofn, "w");
+	fprintf(file, "SNP_ID\tCHI_SQ_VAL\n");
+	for(int i = 0; i < k; i++)
 	{
-		fprintf(stderr, "%lu\n", (unsigned long) my_res[i]);
+		fprintf(file, "%u\t%.4f\n", top_ids[i], chi_sq_vals[i]);
 	}
-	//uint64_t result = 0;
-	//enclave_get_result_rhht(eid, &result);
-	*/
+	fclose(file);
 
 	// Stop timer
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
@@ -332,7 +333,7 @@ void app_cmtf(MsgIO* msgio, config_t& config)
 	fprintf(stderr, "time: %lf\n", duration);
 }
 
-void app_csk(MsgIO* msgio, config_t& config)
+void app_csk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int l, char *ofn)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -343,14 +344,12 @@ void app_csk(MsgIO* msgio, config_t& config)
 	// Make an ECALL to initialize the Enclave CSK structure
 	enclave_init_csk(eid);
 
-	// Set the chunk size for receiving large amounts of data
-	uint32_t chunk_size = 500000;
-
 	// Set app specific variables
-	uint32_t case_count = 2000;
-	uint32_t control_count = 2000;
-	uint32_t num_files = 2000;
-	//uint32_t num_files = 44000;
+	uint32_t num_files = nf;
+	uint32_t num_case_files = nf_case;
+	uint32_t num_control_files = nf - nf_case;
+	uint32_t case_count = (num_case_files << 1);
+	uint32_t control_count = (num_control_files << 1);
 
 	// Start timer
 	std::clock_t start;
@@ -376,13 +375,13 @@ void app_csk(MsgIO* msgio, config_t& config)
 		while(num_elems_rcvd != num_elems)
 		{
 			size_t to_read_elems = 0;
-			if(num_elems_rem < chunk_size)
+			if(num_elems_rem < csz)
 			{
 				to_read_elems = num_elems_rem;
 			}
 			else
 			{
-				to_read_elems = chunk_size;
+				to_read_elems = csz;
 			}
 		
 			// Receive data (encrypted)
@@ -425,13 +424,13 @@ void app_csk(MsgIO* msgio, config_t& config)
 	while(num_elems_rcvd != num_elems)
 	{
 		size_t to_read_elems = 0;
-		if(num_elems_rem < chunk_size)
+		if(num_elems_rem < csz)
 		{
 			to_read_elems = num_elems_rem;
 		}
 		else
 		{
-			to_read_elems = chunk_size;
+			to_read_elems = csz;
 		}
 		
 		// Receive data (encrypted)
@@ -1550,73 +1549,211 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 
 }
 
+void new_parse(char* param_path, app_parameters** params)
+{
+	FILE* param_file;
+	char buf[1024];
+	char var_name[256];
+
+	// Open parameter file
+	param_file = fopen(param_path, "r");
+	
+	while(fgets(buf, 1024, param_file) != NULL)
+	{
+		if(buf[0] == '#')
+		{
+			continue;
+		}
+		buf[strcspn(buf, "\n")] = 0;
+	
+		int token_cnt = 0;
+		char* token = strtok(buf, "=");
+		while(token != NULL)
+		{
+			// First token: variable name
+			if(token_cnt == 0)
+			{
+				strncpy(var_name, token, strlen(token));
+				var_name[strlen(token)] = '\0';
+				token_cnt = 1;
+			}
+			// Second token: variable value
+			else if(token_cnt == 1)
+			{
+				if(strcmp(var_name, "PORT_NUMBER") == 0)
+				{
+					(*params)->port = (char*) malloc(sizeof(char) * (strlen(token) + 1));
+					strncpy((*params)->port, token, strlen(token) + 1);
+
+					// config
+					//config.port = strdup(token);
+				}
+				else if(strcmp(var_name, "APP_MODE") == 0)
+				{
+					(*params)->app_mode = (char*) malloc(sizeof(char) * (strlen(token) + 1));
+					strncpy((*params)->app_mode, token, strlen(token) + 1);
+				}
+				else if(strcmp(var_name, "OUTPUT_FILE") == 0)
+				{
+					(*params)->output_file = (char*) malloc(sizeof(char) * (strlen(token) + 1));
+					strncpy((*params)->output_file, token, strlen(token) + 1);
+				}
+				else if(strcmp(var_name, "NUM_FILES") == 0)
+				{
+					(*params)->num_files = atoi(token);
+				}
+				else if(strcmp(var_name, "NUM_CASE_FILES") == 0)
+				{
+					(*params)->num_files_case = atoi(token);
+				}
+				else if(strcmp(var_name, "NUM_TOP_SNPS") == 0)
+				{
+					(*params)->k = atoi(token);
+				}
+				else if(strcmp(var_name, "CHUNK_SIZE") == 0)
+				{
+					(*params)->chunk_size = atoi(token);
+				}
+				else if(strcmp(var_name, "HASH_OPTION") == 0)
+				{
+					if(strcmp((*params)->app_mode, "basic") != 0)
+					{
+						fprintf(stderr, "The parameter HASH_OPTION is applicable only in mode basic.\n");
+						exit(1);
+					}
+					if(strcmp(token, "oa") == 0)
+					{
+						(*params)->hash_option = 0;
+					}
+					if(strcmp(token, "cmtf") == 0)
+					{
+						(*params)->hash_option = 2;
+					}
+				}
+				else if(strcmp(var_name, "SKETCH_MODE") == 0)
+				{
+					if(strcmp((*params)->app_mode, "sketch") != 0)
+					{
+						fprintf(stderr, "The parameter SKETCH_MODE is applicable only in mode sketch.\n");
+						exit(1);
+					}
+					if(strcmp(token, "cms") == 0)
+					{
+						(*params)->sketch_mode = 0;
+					}
+				}
+				else if(strcmp(var_name, "SKETCH_WIDTH") == 0)
+				{
+					if(strcmp((*params)->app_mode, "sketch") != 0)
+					{
+						fprintf(stderr, "The parameter SKETCH_WIDTH is applicable only in mode sketch.\n");
+						exit(1);
+					}
+					(*params)->sketch_width = (1 << atoi(token));
+				}
+				else if(strcmp(var_name, "SKETCH_DEPTH") == 0)
+				{
+					if(strcmp((*params)->app_mode, "sketch") != 0)
+					{
+						fprintf(stderr, "The parameter SKETCH_DEPTH is applicable only in mode sketch.\n");
+						exit(1);
+					}
+					(*params)->sketch_depth = atoi(token);
+				}
+				else if(strcmp(var_name, "NUM_TOP_CAND") == 0)
+				{
+					if(strcmp((*params)->app_mode, "sketch") != 0)
+					{
+						fprintf(stderr, "The parameter NUM_TOP_CAND is applicable only in mode sketch.\n");
+						exit(1);
+					}
+					(*params)->l = (1 << atoi(token));
+				}
+				else if(strcmp(var_name, "SKETCH_ROW_UPDATE") == 0)
+				{
+					if(strcmp((*params)->app_mode, "sketch") != 0)
+					{
+						fprintf(stderr, "The parameter SKETCH_ROW_UPDATE is applicable only in mode sketch.\n");
+						exit(1);
+					}
+					(*params)->sketch_rup = atoi(token);
+				}
+				else if(strcmp(var_name, "SKETCH_CAND_ONLY") == 0)
+				{
+					if(strcmp((*params)->app_mode, "sketch") != 0)
+					{
+						fprintf(stderr, "The parameter SKETCH_CAND_ONLY is applicable only in mode sketch.\n");
+						exit(1);
+					}
+					(*params)->sketch_cand_only = atoi(token);
+				}
+				else
+				{
+					fprintf(stderr, "Unknown parameter %s in configuration file.\n", var_name);
+					exit(1);
+				}
+				token_cnt = 0;
+			}
+			token = strtok(NULL, "=");
+		}
+	}
+
+	fclose(param_file);
+}
+
 int main(int argc, char** argv)
 {
-	int opt;
-	int opt_index;
+	// Parse the parameters
+	app_parameters* params;
+	init_app_params(&params);
+	new_parse(argv[1], &params);
+	print_app_params(params);
 
-	// IN PROGRESS: Default Parameters
-	char* host_port = NULL;
-	char* app_mode = NULL;
-
-	static struct option long_options[] =
+	// If necessray parameters are missing, exit.
+	if(params->app_mode == NULL || params->output_file == NULL)
 	{
-		{"PORT_NUMBER", optional_argument, 0, 'p'},
-		{"APP_MODE", required_argument, 0, 'm'},
-		{0, 0, 0, 0}
-	};
-
-	while(-1 != (opt = getopt_long(argc, argv, "hp:m:", long_options, &opt_index)))
-	{
-		switch(opt)
-		{
-			case 'h':
-				//print_help();
-				return 0;
-			case 'p':
-				host_port = strdup(optarg); // NOTE: strdup does malloc
-				break;
-			case 'm':
-				app_mode = strdup(optarg); // NOTE: strdup does malloc
-				break;
-			default:
-				//print_help();
-				return 0;
-		}
+		fprintf(stderr, "Missing parameters.\n");
+		exit(1);
 	}
 
-	if(app_mode == NULL)
-	{
-		return 0;
-	}
-
-	optind = 1;
 	config_t config;
 	MsgIO* msgio;
-	parse(argv[0], host_port, config);
+	parse(argv[0], NULL, config);
 	if(!remote_attestation(config, &msgio))
 	{
-		if(strcmp(app_mode, "oa") == 0)
+		if(strcmp(params->app_mode, "basic") == 0)
 		{
-			app_oa(msgio,config);
+			switch(params->hash_option)
+			{
+				case 0:
+					app_oa(msgio, config, params->num_files, params->num_files_case, \
+						params->chunk_size, params->k, params->output_file);
+					break;
+				case 2:
+					app_cmtf(msgio, config, params->num_files, params->num_files_case, \
+						params->chunk_size, params->k, params->output_file);
+					break;
+
+				default:
+					app_rhht(msgio, config, params->num_files, params->num_files_case, \
+						params->chunk_size, params->k, params->output_file);
+					break;
+			}
 		}
-		else if(strcmp(app_mode, "rhht") == 0)
+		else if(strcmp(params->app_mode, "sketch") == 0)
 		{
-			app_rhht(msgio, config);
+			switch(params->sketch_mode)
+			{
+				case 0:
+					//app_cms();
+					break;
+				default:
+					//app_csk();
+					break;
+			}
 		}
-		else if(strcmp(app_mode, "cmtf") == 0)
-		{
-			app_cmtf(msgio, config);
-		}
-		else if(strcmp(app_mode, "cms") == 0)
-		{
-			app_cms(msgio, config);
-		}
-		else if(strcmp(app_mode, "csk") == 0)
-		{
-			app_csk(msgio, config);
-		}
-		else if(strcmp(app_mode, "cms_mt") == 0)
+
+		/*else if(strcmp(app_mode, "cms_mt") == 0)
 		{
 			app_cms_mt(msgio, config);
 		}
@@ -1635,7 +1772,7 @@ int main(int argc, char** argv)
 		else if(strcmp(app_mode, "svd_mcsk") == 0)
 		{
 			app_svd_mcsk(msgio, config);
-		}
+		}*/
 
 		finalize(msgio, config);
 	}

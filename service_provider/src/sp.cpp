@@ -72,11 +72,11 @@ int parse(char* process_name, char* port, config_t &config)
 	system("rm _args_");
 }
 
-void send_encrypted_vcf(MsgIO* msgio, int num_files, int chunk_size, int index[], char filenames[][MAX_FNAME])
+void send_encrypted_vcf(MsgIO* msgio, uint32_t num_files, uint32_t chunk_size, int index[], char filenames[][MAX_FNAME])
 {
 	struct stat st;
 
-	for(int i = 0; i < num_files; i++)
+	for(uint32_t i = 0; i < num_files; i++)
 	{
 		if(stat(filenames[index[i]], &st) != -1)
 		{
@@ -219,7 +219,7 @@ void send_encrypted_snpid(MsgIO* msgio, uint32_t chunk_size, char *uniq_snps_fil
 	delete[] num_elems_buf;
 }
 
-void run_sp(MsgIO* msgio, int nf, char* fdir, char* ufname, uint32_t csz, int mode)
+void run_sp(MsgIO* msgio, uint32_t nf, char* fdir, char* ufname, uint32_t csz, int mode)
 {
 	//int num_files = nf;
 	//char* file_dir = fdir;
@@ -234,7 +234,7 @@ void run_sp(MsgIO* msgio, int nf, char* fdir, char* ufname, uint32_t csz, int mo
 	// 2D array to hold filenames within the directory
 	char filenames[nf][MAX_FNAME];
 
-	int i = 0;
+	uint32_t i = 0;
 	// Check if the input VCF directory exists
 	if((dir = opendir(fdir)) != NULL)
 	{
@@ -535,7 +535,7 @@ int main(int argc, char** argv)
 	print_params(params);
 
 	// If necessray parameters are missing, exit.
-	if(params->app_mode == NULL || params->vcf_dir == NULL || params->num_files == -1)
+	if(params->app_mode == NULL || params->vcf_dir == NULL || params->num_files == 0)
 	{
 		fprintf(stderr, "Missing parameters.\n");
 		exit(1);

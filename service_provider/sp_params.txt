@@ -4,7 +4,7 @@
 
 PORT_NUMBER=7777
 
-APP_MODE=sketch
+APP_MODE=topk
 
 NUM_FILES=2000
 

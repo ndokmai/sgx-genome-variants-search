@@ -1,14 +1,16 @@
 #ifndef _SP_PARAMS_H
 #define _SP_PARAMS_H
 
+#include <stdint.h>
+
 typedef struct _params
 {
 	char* port;
 	char* app_mode;
 	char* vcf_dir;
 	char* snp_ids;
-	int num_files;
-	int chunk_size;
+	uint32_t num_files;
+	uint32_t chunk_size;
 } parameters;
 
 void init_params(parameters**);
