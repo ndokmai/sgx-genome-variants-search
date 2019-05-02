@@ -102,17 +102,18 @@ char verbose= 0;
 
 int parse_config(int argc, char *argv[], config_t& config)
 {
-    sgx_launch_token_t token= { 0 };
-    sgx_status_t status;
-    sgx_enclave_id_t eid= 0;
-    int updated= 0;
-    int sgx_support;
-    uint32_t i;
-    EVP_PKEY *service_public_key= NULL;
-    char have_spid= 0;
-    char flag_stdio= 0;
+//    sgx_launch_token_t token= { 0 };
+//    sgx_status_t status;
+//    sgx_enclave_id_t eid= 0;
+//    int updated= 0;
+//    int sgx_support;
+//    uint32_t i;
+//    EVP_PKEY *service_public_key= NULL;
+//    char have_spid= 0;
+//    char flag_stdio= 0;
 
-    /* Create a logfile to capture debug output and actual msg data */
+	// Create a logfile to capture debug output and actual msg data
+	/*
     fplog = create_logfile("client.log");
     dividerWithText(fplog, "Client Log Timestamp");
 
@@ -129,11 +130,12 @@ int parse_config(int argc, char *argv[], config_t& config)
             lt.tm_min, 
             lt.tm_sec);
     divider(fplog);
+	*/
 
 
-    memset(&config, 0, sizeof(config));
-    config.mode= MODE_ATTEST;
-
+//	memset(&config, 0, sizeof(config));
+//	config.mode= MODE_ATTEST;
+/*
     static struct option long_opt[] =
     {
         {"help",		no_argument,		0, 'h'},		
@@ -154,9 +156,9 @@ int parse_config(int argc, char *argv[], config_t& config)
         {"stdio",		no_argument,		0, 'z'},
         { 0, 0, 0, 0 }
     };
-
-    /* Parse our options */
-
+*/
+	// Parse our options
+	/*
     while (1) {
         int c;
         int opt_index= 0;
@@ -239,7 +241,7 @@ int parse_config(int argc, char *argv[], config_t& config)
                     exit(1);
                 }
 
-                /* Reverse the byte stream to make a little endien style value */
+                // Reverse the byte stream to make a little endien style value
                 for(i= 0; i< 32; ++i) config.pubkey.gx[i]= keyin[31-i];
                 for(i= 0; i< 32; ++i) config.pubkey.gy[i]= keyin[63-i];
 
@@ -288,15 +290,18 @@ int parse_config(int argc, char *argv[], config_t& config)
                 usage();
         }
     }
-    argc-= optind;
-    if ( argc > 1 ) usage();
+	*/
+    //argc-= optind;
+    //if ( argc > 1 ) usage();
+	
 
-    /* Remaining argument is host[:port] */
-
+    // Remaining argument is host[:port]
+	/*
     if ( flag_stdio && argc ) usage();
     else if ( !flag_stdio && ! argc ) {
         // Default to localhost
-        config.server= strdup("localhost");
+        //config.server= strdup("localhost");
+        config.server= strdup("127.0.0.1");
         if ( config.server == NULL ) {
             perror("malloc");
             return 1;
@@ -310,21 +315,22 @@ int parse_config(int argc, char *argv[], config_t& config)
             return 1;
         }
 
-        /* If there's a : then we have a port, too */
+        // If there's a : then we have a port, too
         cp= strchr(config.server, ':');
         if ( cp != NULL ) {
             *cp++= '\0';
             config.port= cp;
         }
     }
-
+*/
+/*
     if ( ! have_spid && ! config.mode == MODE_EPID ) {
         fprintf(stderr, "SPID required. Use one of --spid or --spid-file \n");
         return 1;
     }
-
-    /* Can we run SGX? */
-
+*/
+	// Can we run SGX?
+/*
 #ifndef SGX_HW_SIM
     sgx_support = get_sgx_support();
     if (sgx_support & SGX_SUPPORT_NO) {
@@ -346,7 +352,8 @@ int parse_config(int argc, char *argv[], config_t& config)
         }
     } 
 #endif
-    close_logfile(fplog);
+*/
+    //close_logfile(fplog);
     return 0;
 }
 

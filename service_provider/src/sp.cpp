@@ -33,7 +33,7 @@ static const unsigned char def_service_private_key[32] = {
     0xad, 0x57, 0x34, 0x53, 0xd1, 0x03, 0x8c, 0x01
 };
 
-int parse(char* process_name, char* port, config_t &config)
+/*int parse(char* process_name, char* port, config_t &config)
 {
 	// call the script to generate args file
 	system("./get_args_from_settings.sh");
@@ -70,7 +70,7 @@ int parse(char* process_name, char* port, config_t &config)
 
 	// clean up the args file 
 	system("rm _args_");
-}
+}*/
 
 void send_encrypted_vcf(MsgIO* msgio, uint32_t num_files, uint32_t chunk_size, int index[], char filenames[][MAX_FNAME])
 {

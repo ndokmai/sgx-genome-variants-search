@@ -11,6 +11,34 @@
 #include "Enclave_u.h"
 #include "msgio.h"
 #include "app_params.h"
+#include "logfile.h"
+#include "hexutil.h"
+#include "common.h"
+#include "crypto.h"
+#include "config.h"
+#include "sgx_detect.h"
+#if !defined(SGX_HW_SIM)&&!defined(_WIN32)
+#include "sgx_stub.h"
+#endif
+
+#define MODE_ATTEST 0x0
+#define MODE_EPID 	0x1
+#define MODE_QUOTE	0x2
+
+#define OPT_PSE		0x01
+#define OPT_NONCE	0x02
+#define OPT_LINK	0x04
+#define OPT_PUBKEY	0x08
+
+/* Macros to set, clear, and get the mode and options */
+
+#define SET_OPT(x,y)	x|=y
+#define CLEAR_OPT(x,y)	x=x&~y
+#define OPT_ISSET(x,y)	x&y
+
+# define ENCLAVE_NAME "Enclave.signed.so"
+
+# define _rdrand64_step(x) ({ unsigned char err; asm volatile("rdrand %0; setc %1":"=r"(*x), "=qm"(err)); err; })
 
 int global_eid;
 
@@ -1549,11 +1577,35 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config)
 
 }
 
-void new_parse(char* param_path, app_parameters** params)
+void new_parse(char* param_path, app_parameters** params, config_t& config)
 {
 	FILE* param_file;
 	char buf[1024];
 	char var_name[256];
+
+//	sgx_launch_token_t token = { 0 };
+//	sgx_status_t status;
+//	sgx_enclave_id_t eid = 0;
+//	int updated = 0;
+//	int sgx_support;
+	uint32_t i;
+//	EVP_PKEY* service_public_key = NULL;
+	char have_spid = 0;
+//	char flag_stdio = 0;
+
+	// Create a logfile to capture debug output and actual msg data
+	fplog = create_logfile("client.log");
+	dividerWithText(fplog, "Client Log Timestamp");
+
+	const time_t timeT = time(NULL);
+	struct tm lt;
+
+	localtime_r(&timeT, &lt);
+	fprintf(fplog, "%4d-%02d-%02d %02d:%02d:%02d\n", lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour, lt.tm_min, lt.tm_sec);
+	divider(fplog);
+
+	memset(&config, 0, sizeof(config));
+	config.mode = MODE_ATTEST;
 
 	// Open parameter file
 	param_file = fopen(param_path, "r");
@@ -1586,7 +1638,7 @@ void new_parse(char* param_path, app_parameters** params)
 					strncpy((*params)->port, token, strlen(token) + 1);
 
 					// config
-					//config.port = strdup(token);
+					config.port = strdup(token);
 				}
 				else if(strcmp(var_name, "APP_MODE") == 0)
 				{
@@ -1687,6 +1739,42 @@ void new_parse(char* param_path, app_parameters** params)
 					}
 					(*params)->sketch_cand_only = atoi(token);
 				}
+				else if(strcmp(var_name, "SPID") == 0)
+				{
+					if(strlen(token) < 32)
+					{
+						fprintf(stderr, "SPID must be 32-byte hex string\n");
+						exit(1);
+					}
+
+					if(!from_hexstring((unsigned char*) &config.spid, (unsigned char*) token, 16))
+					{
+						fprintf(stderr, "SPID must be 32-byte hex string\n");
+						exit(1);
+					}
+					have_spid = 1;
+				}
+				else if(strcmp(var_name, "RANDOM_NONCE") == 0)
+				{
+					int rand_nonce = atoi(token);
+					if(rand_nonce == 1)
+					{
+						for(i = 0; i < 2; ++i)
+						{
+							int retry = 10;
+							unsigned char ok = 0;
+							uint64_t* np= (uint64_t*) &config.nonce;
+
+							while(!ok && retry) ok = _rdrand64_step(&np[i]);
+							if(ok == 0)
+							{
+								fprintf(stderr, "nonce: RDRAND underflow\n");
+								exit(1);
+							}
+						}
+						SET_OPT(config.flags, OPT_NONCE);
+					}
+				}
 				else
 				{
 					fprintf(stderr, "Unknown parameter %s in configuration file.\n", var_name);
@@ -1698,15 +1786,55 @@ void new_parse(char* param_path, app_parameters** params)
 		}
 	}
 
+	config.server = strdup("127.0.0.1");
+
+/*	if(!have_spid && !config.mode == MODE_EPID )
+	{
+		fprintf(stderr, "SPID required. Use one of --spid or --spid-file \n");
+		exit(1);
+    }*/
+
+	// Can we run SGX?
+/*
+#ifndef SGX_HW_SIM
+	sgx_support = get_sgx_support();
+	if(sgx_support & SGX_SUPPORT_NO)
+	{
+		fprintf(stderr, "This system does not support Intel SGX.\n");
+        exit(1);
+    }
+	else
+	{
+		if(sgx_support & SGX_SUPPORT_ENABLE_REQUIRED)
+		{
+			fprintf(stderr, "Intel SGX is supported on this system but disabled in the BIOS\n");
+            exit(1);
+		}
+		else if(sgx_support & SGX_SUPPORT_REBOOT_REQUIRED)
+		{
+			fprintf(stderr, "Intel SGX will be enabled after the next reboot\n");
+			exit(1);
+		}
+		else if(!(sgx_support & SGX_SUPPORT_ENABLED))
+		{
+			fprintf(stderr, "Intel SGX is supported on this sytem but not available for use\n");
+			fprintf(stderr, "The system may lock BIOS support, or the Platform Software is not available\n");
+			exit(1);
+		}
+	} 
+#endif
+*/
+	//close_logfile(fplog);
 	fclose(param_file);
 }
 
 int main(int argc, char** argv)
 {
 	// Parse the parameters
+	config_t config;
 	app_parameters* params;
 	init_app_params(&params);
-	new_parse(argv[1], &params);
+	new_parse(argv[1], &params, config);
 	print_app_params(params);
 
 	// If necessray parameters are missing, exit.
@@ -1716,9 +1844,9 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
-	config_t config;
 	MsgIO* msgio;
-	parse(argv[0], NULL, config);
+	//parse(argv[0], NULL, config);
+
 	if(!remote_attestation(config, &msgio))
 	{
 		if(strcmp(params->app_mode, "basic") == 0)
