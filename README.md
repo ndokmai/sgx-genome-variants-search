@@ -1,28 +1,75 @@
 # SkSES User Guide
-
+ 
 #### Prerequisites
+The current build of the software provided was tested on a system with the following required components:
 
-#### Installation
+ * Ubuntu 16.04.5 LTS (GNU/Linux 4.15.0-29-generic x86_64)
+ * gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.10)
 
-#### Usage
+Please also ensure that you have hardware that can support Intel SGX:
 
-#### Sample Run
-To run SkSES, the first step is to set up its parameters from both service_provider and server side(s). Example parameter settings are provided in the corresponding directories, i.e. ```/service_provider``` and ```/server```.
+ * https://github.com/ayeks/SGX-hardware
+ 
+Refer to the "Intel Remote Attestation Guide" below to install Intel SGX on your system.
 
-For more information about the interpretations of each parameter, please consult ```/service_provider/src/sp_param.h``` and ```/server/include/app_param.h```.
+#### Installation and Usage/Sample Run
 
-For a test run, users need to update the port number according to your network environment and make sure that the specified ports are not blocked by the firewall.
+The project is divided into three logical parts under their respective directories:
 
-Once the parameters are set up, from the service provider side, simply run
+1. compress_vcf/
+2. server/
+3. service_provider/
+
+##### Compile binaries
+
+* Simply run the command "make" in each of the main directories to compile the binaries.
+
+* IMPORTANT NOTE: Since there are some hardcoded paths within the Makefile(s), especially for the server, it might be necessary to
+modify these to point to the correct locations of the libraries.
+
+* If you get any errors during compilation, it is quite likely due to a missing/incorrect Intel SGX installation or the related libraries. Please carefully (re)-follow the instructions provided in the "Intel Remote Attestation Guide" below the README for our software before proceeding.
+
+##### Preprocess VCF files
+
+  * For this step, start by creating two empty output directories. These are where the
+preprocessed VCF files will be stored.
+
+  * Then, modify the input/output paths in the script compress_vcf/compress_full.sh to point
+to the correct directories.
+
+  * Finally, run the script to have all VCF files preprocessed.
+
+  * NOTE: Since the addition of sketching support, the preprocessed files need to be ina single directory,
+therefore copy the previously created files from both output directories into a new one. Or you may modify the
+provided script compress_full.sh to directly output to a single directory.
+
+##### Run the Service Provider
+
+ *  Set the desired parameters for the service_provider. Sample parameter settings are provided in the corresponding directory, i.e. ```/service_provider```.
+
+ * For more information about the interpretation of each parameter, please consult ```/service_provider/src/sp_param.h```.
+
+ * For a test run, update the port number according to your network environment and make sure that the specified ports are not blocked by the firewall.
+
+ * Once the parameters are set up, simply run:
+ 
 ```
 ./sp sp_params.txt
 ```
 
-Then, run 
+##### Run the Server
+
+ *  Set the desired parameters for the server. Sample parameter settings are provided in the corresponding directory, i.e. ```/server```.
+
+ * For more information about the interpretations of each parameter, please consult ```/server/include/app_param.h```.
+
+ * For a test run, users need to update the port number according to your network environment and make sure that the specified ports are not blocked by the firewall.
+
+ * Once the parameters are set up, simply run:
+ 
 ```
 ./app app_params.txt
 ```
-from the server side.
 
 #### License
 
