@@ -1,7 +1,7 @@
 # SkSES User Guide
  
 #### Prerequisites
-The current build of the software provided was tested on a system with the following required components:
+The current build of SkSES was tested on a system with the following required components:
 
  * Ubuntu 16.04.5 LTS (GNU/Linux 4.15.0-29-generic x86_64)
  * gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.10)
@@ -10,9 +10,9 @@ Please also ensure that you have hardware that can support Intel SGX:
 
  * https://github.com/ayeks/SGX-hardware
  
-Refer to the "Intel Remote Attestation Guide" below to install Intel SGX on your system.
+SkSES was built on top of the sample code provided by Intel (https://github.com/intel/sgx-ra-sample). Please refer to the "Intel® Software Guard Extensions (SGX) Remote Attestation End-to-End Sample" README, copied below the SkSES README, to install the necessary SGX components on your system.
 
-#### Installation and Usage/Sample Run
+#### Installation and Usage
 
 The project is divided into three logical parts under their respective directories:
 
@@ -27,7 +27,7 @@ The project is divided into three logical parts under their respective directori
 * IMPORTANT NOTE: Since there are some hardcoded paths within the Makefile(s), especially for the server, it might be necessary to
 modify these to point to the correct locations of the libraries.
 
-* If you get any errors during compilation, it is quite likely due to a missing/incorrect Intel SGX installation or the related libraries. Please carefully (re)-follow the instructions provided in the "Intel Remote Attestation Guide" below the README for our software before proceeding.
+* If you get any errors during compilation, it is quite likely due to a missing/incorrect Intel SGX installation or the related libraries. Please carefully (re)-follow the instructions provided in the "Intel® Software Guard Extensions (SGX) Remote Attestation End-to-End Sample" README below before proceeding.
 
 ##### Preprocess VCF files
 
@@ -73,7 +73,7 @@ provided script compress_full.sh to directly output to a single directory.
 
 #### License
 
-SkSES has an MIT License. However, SkSES contains parts of Intel SGX sample code, therefore also refers to Intel Sample Source Code license.
+SkSES has an MIT License. However, SkSES contains parts of Intel SGX sample code, therefore please also refer to Intel Sample Source Code license if you'd like to use/modify our code.
 
 # Intel&reg; Software Guard Extensions (SGX) Remote Attestation End-to-End Sample
 
