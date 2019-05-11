@@ -71,6 +71,9 @@ provided script compress_full.sh to directly output to a single directory.
 ```
 ./app app_params.txt
 ```
+##### Expected Output
+
+  * A single plaintext file (name should be specified in app_params.txt) under the ```/server``` directory which contains the top-k SNPs from your input VCF files and their chi-square (or Cochran-Armitage trend chi-square) values.   
 
 #### License
 
