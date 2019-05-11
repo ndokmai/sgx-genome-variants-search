@@ -30,7 +30,8 @@ modify these to point to the correct locations of the libraries.
 * If you get any errors during compilation, it is quite likely due to a missing/incorrect Intel SGX installation or the related libraries. Please carefully (re)-follow the instructions provided in the "Intel® Software Guard Extensions (SGX) Remote Attestation End-to-End Sample" README below before proceeding.
 
 ##### Preprocess VCF files
-
+  * A sample dataset is available at http://www.humangenomeprivacy.org/2017/competition-tasks.html (Task 2: Software Guard Extension (SGX) based whole genome variants search) 
+  
   * For this step, start by creating two empty output directories. These are where the
 preprocessed VCF files will be stored.
 
