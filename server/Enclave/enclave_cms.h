@@ -23,6 +23,8 @@ void cms_init(uint32_t, uint32_t);
 void cms_free();
 void cms_setsth(int);
 void cms_update_var(uint64_t, int16_t);
+void cms_update_st_length(int16_t);
+void cms_normalize_st_length(int);
 void cms_update_var_row(uint64_t, int16_t, size_t);
 int16_t cms_query_median_odd(uint64_t item);
 int16_t cms_query_median_even(uint64_t item);

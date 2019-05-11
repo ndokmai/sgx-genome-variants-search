@@ -20,23 +20,11 @@
 #define ALLELE_HETEROZYGOUS	1
 #define	ALLELE_HOMOZYGOUS	2
 
-#define	MH_INIT_CAPACITY	(1 << 17)
-
 #define	ENC_RES_BUF_LEN		1000
 
 #define OA_INIT_CAPACITY	(1 << 23)
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 21)
-
-#define CMS_WIDTH			(1 << 18)
-#define	CMS_DEPTH			12
-
-#define	CSK_WIDTH			(1 << 18)
-#define	CSK_DEPTH			12
-
-#define MCSK_WIDTH			2000
-#define MCSK_NUM_PC			2
-#define	MCSK_EPS			0.022
 
 #define L1_CACHE_SIZE		(1 << 14)
 #define	L2_CACHE_SIZE		(1 << 17)
@@ -58,6 +46,11 @@ float *u;
 float **enclave_eig;
 uint32_t enc_id_buf[ENC_RES_BUF_LEN];
 float enc_res_buf[ENC_RES_BUF_LEN];
+//uint16_t enc_temp_buf[10];
+//int test_i = 0;
+int cms_st_length_inflation = 0;
+int MCSK_WIDTH = 0;
+int MCSK_NUM_PC = 0;
 
 void enclave_reset_file_idx()
 {
@@ -72,7 +65,7 @@ void mcsk_pull_row()
 	}
 }
 
-void enclave_init_mcsk()
+void enclave_init_mcsk(int MCSK_WIDTH, int MCSK_NUM_PC, float MCSK_EPS)
 {
 	mcsk_init(MCSK_WIDTH, MCSK_NUM_PC, MCSK_EPS);
 	phenotypes = (float*) malloc(MCSK_WIDTH * sizeof(float));
@@ -136,6 +129,8 @@ void enclave_mcsk_mean_centering()
 
 void enclave_svd()
 {
+	MCSK_WIDTH = m_mcsk->m;
+	MCSK_NUM_PC = m_mcsk->k;
 	float** A = getmsk();
 	float** Q = (float**) malloc(MCSK_WIDTH * sizeof(float*));
 	float* S = (float*) malloc(MCSK_WIDTH * sizeof(float));
@@ -474,7 +469,7 @@ sgx_status_t ecall_thread_csk(int thread_num)
 }
 
 /***** BEGIN: SNP Ranking Using Sketch and RHHT *****/
-void enclave_init_sketch_rhht()
+void enclave_init_sketch_rhht(int MH_INIT_CAPACITY)
 {
 	// Allocate enclave Robin-Hood hash table
 	// TODO: Allow growing (currently not)
@@ -562,7 +557,7 @@ void enclave_decrypt_process_sketch_rhht(sgx_ra_context_t ctx, uint8_t* cipherte
 	delete[] plaintext;
 }
 
-void enclave_init_rhht_pcc()
+void enclave_init_rhht_pcc(int MH_INIT_CAPACITY)
 {
 	// Allocate enclave Robin-Hood hash table
 	// TODO: Allow growing (currently not)
@@ -650,9 +645,10 @@ void enclave_decrypt_process_rhht_pcc(sgx_ra_context_t ctx, uint8_t* ciphertext,
 /**** END: SNP Ranking Using Sketch and RHHT *****/
 
 /***** BEGIN: Enclave Count-Min-Sketch Public Interface *****/
-void enclave_init_cms()
+void enclave_init_cms(int CMS_WIDTH, int CMS_DEPTH)
 {
 	cms_init(CMS_WIDTH, CMS_DEPTH);
+	cms_st_length_inflation = CMS_DEPTH >> 2;
 }
 
 void enclave_decrypt_store_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
@@ -778,7 +774,6 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 	}
 
 	// Update the CMS for every element
-	/*
 	size_t i;
 	uint64_t rs_id_uint;
 	for(i = 2; i < num_het_start + 2; i++)
@@ -792,16 +787,49 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 		cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
 	}
-	*/
 
+	// We've processed the data, now clear it
+	delete[] plaintext;
+}
+
+void enclave_decrypt_update_cms_row(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+	uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+	enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	// Get the meta information first
+	uint32_t patient_status = ((uint32_t*) plaintext) [0];
+	uint32_t num_het_start = ((uint32_t*) plaintext) [1];
+
+	// Sign is +1 for case and -1 for control
+	int16_t sign = 1;
+	if(patient_status == 0)
+	{
+		sign = -1;
+	}
+
+	// Update the CMS for every element
 	size_t i;
-	size_t j;
+	//size_t j;
 	size_t k;
 	uint64_t rs_id_uint;
 	//int16_t count;
 	//uint32_t hash;
 	//uint32_t pos;
-	for(i = 0; i < m_cms->depth / 4; i = i + 4)
+	for(i = 0; i < m_cms->depth; i += 4)
 	{
 //		for(j = 0; j < (m_cms->width / PARTITION_SIZE); j++)
 //		{ 
@@ -809,6 +837,7 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 			for(k = 2; k < num_het_start + 2; k++)
 			{
 				rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [k];
+				cms_update_st_length(ALLELE_HOMOZYGOUS * sign);
 				cms_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i);
 				cms_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i + 1);
 				cms_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i + 2);
@@ -839,6 +868,7 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 			for(k = num_het_start + 2; k < num_elems; k++)
 			{
 				rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [k];
+				cms_update_st_length(ALLELE_HOMOZYGOUS * sign);
 				cms_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i);
 				cms_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i + 1);
 				cms_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i + 2);
@@ -870,6 +900,11 @@ void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 
 	// We've processed the data, now clear it
 	delete[] plaintext;
+}
+
+void enclave_normalize_cms_st_length()
+{
+	cms_normalize_st_length(cms_st_length_inflation);
 }
 
 void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
@@ -910,6 +945,11 @@ void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t
 				est_diff = est_diff * -1;
 			}
 
+			/*if(test_i < 10)
+			{
+				enc_temp_buf[test_i] = est_diff;
+				test_i++;
+			}*/
 			// Try to insert the element into the min heap
 			// If the heap is full, inserted if its absolute difference is larger than the root
 			mh_insert(rs_id_uint, est_diff);
@@ -943,12 +983,12 @@ void enclave_decrypt_query_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t
 /***** END: Enclave Count-Min-Sketch Public Interface *****/
 
 /***** BEGIN: Enclave Count-Sketch Public Interface *****/
-void enclave_init_csk()
+void enclave_init_csk(int CSK_WIDTH, int CSK_DEPTH)
 {
 	csk_init(CSK_WIDTH, CSK_DEPTH);
 }
 
-void enclave_init_csk_f()
+void enclave_init_csk_f(int CSK_WIDTH, int CSK_DEPTH)
 {
 	csk_init_f(CSK_WIDTH, CSK_DEPTH);
 }
@@ -1090,6 +1130,114 @@ void enclave_decrypt_update_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
 		csk_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
+	}
+
+	// We've processed the data, now clear it
+	delete[] plaintext;
+}
+
+void enclave_decrypt_update_csk_row(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+	uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+	enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	// Get the meta information first
+	uint32_t patient_status = ((uint32_t*) plaintext) [0];
+	uint32_t num_het_start = ((uint32_t*) plaintext) [1];
+
+	// Sign is +1 for case and -1 for control
+	int16_t sign = 1;
+	if(patient_status == 0)
+	{
+		sign = -1;
+	}
+
+	// Update the CMS for every element
+	size_t i;
+	//size_t j;
+	size_t k;
+	uint64_t rs_id_uint;
+	//int16_t count;
+	//uint32_t hash;
+	//uint32_t pos;
+	for(i = 0; i < m_csk->depth; i = i + 4)
+	{
+//		for(j = 0; j < (m_csk->width / PARTITION_SIZE); j++)
+//		{ 
+			//count = ALLELE_HOMOZYGOUS * sign;
+			for(k = 2; k < num_het_start + 2; k++)
+			{
+				rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [k];
+				csk_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i);
+				csk_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i + 1);
+				csk_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i + 2);
+				csk_update_var_row(rs_id_uint, ALLELE_HOMOZYGOUS * sign, i + 3);
+
+				/* CACHE AWARE TEST
+				hash = cal_hash(rs_id_uint, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+				pos = hash & m_csk->width_minus_one;
+				if(pos > (j * PARTITION_SIZE) && pos < ((j + 1) * PARTITION_SIZE))
+				{
+					if(m_csk->sketch[i][pos] >= HASH_MAX && count > 0)
+					{
+						return;
+					}
+
+					if(m_csk->sketch[i][pos] <= HASH_MIN && count < 0)
+					{
+						return;
+					}
+
+					m_csk->sketch[i][pos] = m_csk->sketch[i][pos] + count;
+					m_csk->st_length = m_csk->st_length + count;
+				}
+				*/
+			}
+
+			//count = ALLELE_HETEROZYGOUS * sign;
+			for(k = num_het_start + 2; k < num_elems; k++)
+			{
+				rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [k];
+				csk_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i);
+				csk_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i + 1);
+				csk_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i + 2);
+				csk_update_var_row(rs_id_uint, ALLELE_HETEROZYGOUS * sign, i + 3);
+
+				// CACHE AWARE TEST
+				/*
+				hash = cal_hash(rs_id_uint, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+				pos = hash & m_csk->width_minus_one;
+				if(pos > (j * PARTITION_SIZE) && pos < ((j + 1) * PARTITION_SIZE))
+				{
+					if(m_csk->sketch[i][pos] >= HASH_MAX && count > 0)
+					{
+						return;
+					}
+
+					if(m_csk->sketch[i][pos] <= HASH_MIN && count < 0)
+					{
+						return;
+					}
+
+					m_csk->sketch[i][pos] = m_csk->sketch[i][pos] + count;
+					m_csk->st_length = m_csk->st_length + count;
+				}
+				*/
+			}
+//		}
 	}
 
 	// We've processed the data, now clear it
@@ -1242,17 +1390,17 @@ void enclave_decrypt_query_csk_f(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 		for(i = 0; i < num_elems; i++)
 		{
 			rs_id_uint = (uint64_t) ((uint32_t*) plaintext) [i];
-			// TODO: add the even version
-			est_diff = csk_query_median_odd_f(rs_id_uint);
-//			if(est_diff < 0)
-//			{
-//				est_diff = est_diff * -1;
-//			}
+			
+			est_diff = csk_query_median_even_f(rs_id_uint);
+			if(est_diff < 0)
+			{
+				est_diff = -est_diff;
+			}
 
 			// Try to insert the element into the min heap
 			// Updated if already in
 			// If the heap is full, inserted if its absolute difference is larger than the root
-			mh_insert(rs_id_uint, est_diff);
+			mh_insert_f(rs_id_uint, est_diff);
 		}
 	}
 	else
@@ -1803,7 +1951,7 @@ float cat_chi_sq(uint16_t ssqg, uint16_t total, float dotprod, float sx, float s
 		sx2 -= (pc_projections[pc] * pc_projections[pc]);
 	}
 	chi_sq_val = total * dotprod - sx * sy;
-	chi_sq_val = (chi_sq_val * chi_sq_val) / ((total * sx2 - sx * sx) * (total * sy2 - sy * sy));
+	chi_sq_val = (chi_sq_val * chi_sq_val) * total / ((total * sx2 - sx * sx) * (total * sy2 - sy * sy));
 	return chi_sq_val;
 }
 
@@ -1881,7 +2029,10 @@ void rhht_init_cat_chi_sq(uint16_t total, int k)
 			// Calculate the chi squared value
 			chi_sq_val = cat_chi_sq(rhht_snp_table_pcc->buffer[i].ssqg, total, rhht_snp_table_pcc->buffer[i].dotprod, \
 						rhht_snp_table_pcc->buffer[i].sx, sy, sy2, rhht_snp_table_pcc->buffer[i].pc_projections);
-
+			if(isnan(chi_sq_val))
+			{
+				continue;
+			}
 			// If the top-k array is not full, add current snp without any checks
 			if(num_used < k)
 			{
@@ -2035,12 +2186,12 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 /***** END: Enclave Chi-Sqaured Test Functions *****/
 
 /***** BEGIN: Enclave Min-Heap Public ECALL Interface *****/
-void enclave_init_mh()
+void enclave_init_mh(int MH_INIT_CAPACITY)
 {
 	allocate_heap(MH_INIT_CAPACITY);
 }
 
-void enclave_init_mh_f()
+void enclave_init_mh_f(int MH_INIT_CAPACITY)
 {
 	allocate_heap_f(MH_INIT_CAPACITY);
 }
@@ -2117,10 +2268,20 @@ void enclave_get_res_buf(float* countf, int k)
 	}
 }
 
-/*void enclave_get_sketch_mh(uint32_t* id, int l)
+/*void enclave_get_test_buf(uint16_t *res)
 {
-	for(int i = 0; i < l; i++)
+	for(int i = 0; i < 10; i++)
 	{
-		id[i] = enc_res_buf[i];
+		res[i] = enc_temp_buf[i];
 	}
 }*/
+
+void enclave_get_mh_ids(uint32_t* ids, int l)
+{
+	get_mh_keys(ids, l);
+}
+
+void enclave_get_mh_vals(uint16_t* vals, int l)
+{
+	get_mh_vals(vals, l);
+}

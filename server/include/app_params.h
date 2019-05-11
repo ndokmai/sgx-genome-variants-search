@@ -23,6 +23,7 @@ typedef struct _params
 	uint32_t chunk_size;
 	int k;
 	int l;
+	int num_pc;
 } app_parameters;
 
 void init_app_params(app_parameters**);

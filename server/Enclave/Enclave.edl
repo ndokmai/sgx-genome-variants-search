@@ -42,7 +42,10 @@ enclave
 		public void mcsk_pull_row();
 		public void enclave_get_mem_used([out, size = 4] uint32_t* mem_usage);
 		public void enclave_get_id_buf([out, size = 400] uint32_t* id, int k);
+		//public void enclave_get_test_buf([out, size = 20] uint16_t* res);
 		public void enclave_get_res_buf([out, size = 400] float* countf, int k);
+		public void enclave_get_mh_ids([out, size = 524288] uint32_t* ids, int l);
+		public void enclave_get_mh_vals([out, size = 262144] uint16_t* vals, int l);
 
 		// Open-Addressing Hash-Table public ECALL interface
 		public void enclave_init_oa();
@@ -53,10 +56,10 @@ enclave
 		public void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
 		// Three-Pass version
-		public void enclave_init_sketch_rhht();
+		public void enclave_init_sketch_rhht(int MH_INIT_CAPACITY);
 		public void enclave_decrypt_process_sketch_rhht(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
-		public void enclave_init_rhht_pcc();
+		public void enclave_init_rhht_pcc(int MH_INIT_CAPACITY);
 		public void enclave_decrypt_process_rhht_pcc(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
 		// Chained-Move-to-Front Hash Table public ECALL interface
@@ -64,8 +67,10 @@ enclave
 		public void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
 		// Count-Min-Sketch public ECALL interface
-		public void enclave_init_cms();
+		public void enclave_init_cms(int CMS_WIDTH, int CMS_DEPTH);
+		public void enclave_normalize_cms_st_length();
 		public void enclave_decrypt_update_cms(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
+		public void enclave_decrypt_update_cms_row(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 		public void enclave_decrypt_query_cms(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
 		// Multi-threaded CMS public ECALL interface
@@ -74,16 +79,17 @@ enclave
 		public void enclave_clear_cms(sgx_ra_context_t ctx);
 
 		// Count-Sketch public ECALL interface
-		public void enclave_init_csk();
-		public void enclave_init_csk_f();
+		public void enclave_init_csk(int CSK_WIDTH, int CSK_DEPTH);
+		public void enclave_init_csk_f(int CSK_WIDTH, int CSK_DEPTH);
 		public void enclave_decrypt_update_csk(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
+		public void enclave_decrypt_update_csk_row(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 		public void enclave_decrypt_update_csk_f(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 		public void enclave_decrypt_query_csk(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 		public void enclave_decrypt_query_csk_f(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
 		// Matrix Count-Sketch public ECALL interface
 		public void enclave_reset_file_idx();
-		public void enclave_init_mcsk();
+		public void enclave_init_mcsk(int MCSK_WIDTH, int MCSK_NUM_PC, float MCSK_EPS);
 		public void enclave_decrypt_update_mcsk(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 		public void enclave_mcsk_mean_centering();
 
@@ -94,8 +100,8 @@ enclave
 		public void enclave_svd();
 
 		// Min-Heap public ECALL interface
-		public void enclave_init_mh();
-		public void enclave_init_mh_f();
+		public void enclave_init_mh(int MH_INIT_CAPACITY);
+		public void enclave_init_mh_f(int MH_INIT_CAPACITY);
 
 		// Chi-Squared Test public ECALL interface
 		public void oa_init_chi_sq(uint16_t case_count, uint16_t control_count, int k);

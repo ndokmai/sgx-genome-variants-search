@@ -18,9 +18,10 @@ void init_app_params(app_parameters** params)
 	(*params)->sketch_mode = 1;
 	(*params)->sketch_width = (1 << 18);
 	(*params)->sketch_depth = 12;
-	(*params)->sketch_rup = 1;
+	(*params)->sketch_rup = 0;
 	(*params)->l = (1 << 17);
 	(*params)->sketch_cand_only = 0;
+	(*params)->num_pc = 2;
 }
 
 void print_app_params(app_parameters* params)

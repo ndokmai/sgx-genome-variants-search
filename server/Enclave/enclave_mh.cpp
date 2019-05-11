@@ -293,3 +293,25 @@ void remove_min_f()
         min_heapify_down_f(0);
 }
 
+void get_mh_keys(uint32_t *keys, uint32_t l)
+{
+        if(l <= mh->max_heap_size)
+        {
+		for(uint32_t i = 0; i < l; i++)
+		{
+			keys[i] = mh->mh_array[i].key;
+		}
+        }
+}
+
+void get_mh_vals(uint16_t *vals, uint32_t l)
+{
+        if(l <= mh->max_heap_size)
+        {
+		for(uint32_t i = 0; i < l; i++)
+		{
+			vals[i] = mh->mh_array[i].val;
+		}
+        }
+}
+

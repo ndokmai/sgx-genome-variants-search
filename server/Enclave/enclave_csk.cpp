@@ -330,7 +330,7 @@ float csk_query_median_even_f(uint64_t item)
 	{
 		median = values[m_csk->depth / 2 - 1];
 	}
-	else if(values[m_csk->depth / 2 - 1] -(m_csk->s_thres) > 0.0)
+	else if(values[m_csk->depth / 2 - 1] - m_csk->s_thres > 0.0)
 	{
 		median = values[m_csk->depth / 2];
 	}

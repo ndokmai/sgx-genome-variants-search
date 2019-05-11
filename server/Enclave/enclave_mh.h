@@ -47,5 +47,7 @@ void min_heapify(uint32_t);
 void min_heapify_f(uint32_t);
 void min_heapify_down(uint32_t);
 void min_heapify_down_f(uint32_t);
+void get_mh_keys(uint32_t*, uint32_t);
+void get_mh_vals(uint16_t*, uint32_t);
 
 #endif

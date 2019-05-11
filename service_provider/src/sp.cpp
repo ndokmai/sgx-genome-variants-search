@@ -548,7 +548,7 @@ int main(int argc, char** argv)
 	{
 		remote_attestation(config, msgio);
 	
-		if(strcmp(params->app_mode, "topk") == 0)
+		if(strcmp(params->app_mode, "basic") == 0)
 			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 0);
 		if(strcmp(params->app_mode, "sketch") == 0)
 			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 11);

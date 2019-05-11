@@ -4,7 +4,8 @@
 
 PORT_NUMBER=7777
 
-APP_MODE=topk
+#One of "basic", "sketch", "sketch_topk", "pca_sketch"
+APP_MODE=pca_sketch
 
 NUM_FILES=2000
 
