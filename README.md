@@ -16,13 +16,13 @@ SkSES was built on top of the sample code provided by Intel (https://github.com/
 
 The project is divided into three logical parts under their respective directories:
 
-1. compress_vcf/
-2. server/
-3. service_provider/
+1. ```compress_vcf```
+2. ```server```
+3. ```service_provider```
 
 ##### Compile binaries
 
-* Simply run the command "make" in each of the main directories to compile the binaries.
+* Simply run the command ```make``` in each of the main directories to compile the binaries.
 
 * IMPORTANT NOTE: Since there are some hardcoded paths within the Makefile(s), especially for the server, it might be necessary to
 modify these to point to the correct locations of the libraries.
