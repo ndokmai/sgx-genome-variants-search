@@ -28,9 +28,6 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Usage:\t%s\t<Input VCF>\t<CASE(1)/CONTROL(0)>\n", argv[0]);
 		return 0;
 	}
-
-	/* Start program */
-	fprintf(stderr, "Compressing VCF file provided for idash-2017 ...\n");
 	
 	/* Prepare filenames */
 	char in_fname[MAX_FNAME];
@@ -44,7 +41,7 @@ int main(int argc, char** argv)
 	strcpy(out_fname, in_fname);
 
 	/* Add new file extensions */
-	strcat(out_fname, ".ckz0");
+	strcat(out_fname, ".bin");
 
 	/* Open input file for reading */
 	FILE* infile = fopen(argv[1], "r");
@@ -53,6 +50,9 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Error opening input file\n");
 		return 1;
 	}
+
+	/* Start program */
+	fprintf(stderr, "Compressing VCF file %s ...\n", argv[1]);
 
 	/* Write this to the output file as the first 4 bytes so that the reader program later
 	 * can figure out how many lines it has to read until the allele types of the SNPs become

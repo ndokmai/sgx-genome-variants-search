@@ -10,3 +10,6 @@ server/settings
 service_provider/settings
 .*.swp
 top_snps
+test_data/bin
+test_data/count_unique.py
+test_data/unique_snps.bin

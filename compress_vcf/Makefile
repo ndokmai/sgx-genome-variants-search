@@ -1,20 +1,10 @@
-CC		=	gcc
+all: 
+	gcc -c -O3 -Wall extract_uniq_snps.c -o extract_uniq_snps.o
+	gcc -c -O3 -Wall rhht.c -o rhht.o
+	gcc -c -O3 -Wall compress_vcf.c -o compress_vcf.o
+	gcc extract_uniq_snps.o rhht.o -o extract_uniq_snps
+	gcc compress_vcf.o -o compress_vcf
+	rm -rf *.o
 
-CFLAGS	=	-O3 -Wall
-
-C_SOURCES 	=	compress_vcf.c
-
-C_OBJECTS	=	$(C_SOURCES:.c=.o)
-
-EXECUTABLE	=	compress_vcf
-
-all: $(SOURCES) $(EXECUTABLE)
-	rm -fr $(C_OBJECTS)
-
-$(EXECUTABLE): $(C_OBJECTS)
-	$(CC) $(C_OBJECTS) -o $@
-
-%.o: %.c
-	$(CC) -c $(CFLAGS) $(INCLUDE) $< -o $@
 clean:
-	rm -f $(EXECUTABLE) *.o *~
+	rm -rf compress_vcf extract_uniq_snps *.o *~
