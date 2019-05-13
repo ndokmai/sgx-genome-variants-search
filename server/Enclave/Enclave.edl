@@ -41,11 +41,11 @@ enclave
 		public void enclave_ortho([out, size = 24] float* my_res);
 		public void mcsk_pull_row();
 		public void enclave_get_mem_used([out, size = 4] uint32_t* mem_usage);
-		public void enclave_get_id_buf([out, size = 400] uint32_t* id, int k);
+		public void enclave_get_id_buf([out, size = 40] uint32_t* id, int k);
 		//public void enclave_get_test_buf([out, size = 20] uint16_t* res);
-		public void enclave_get_res_buf([out, size = 400] float* countf, int k);
-		public void enclave_get_mh_ids([out, size = 524288] uint32_t* ids, int l);
-		public void enclave_get_mh_vals([out, size = 262144] uint16_t* vals, int l);
+		public void enclave_get_res_buf([out, size = 40] float* countf, int k);
+		public void enclave_get_mh_ids([out, size = 256] uint32_t* ids, int l);
+		public void enclave_get_mh_vals([out, size = 128] uint16_t* vals, int l);
 
 		// Open-Addressing Hash-Table public ECALL interface
 		public void enclave_init_oa();

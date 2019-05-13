@@ -24,6 +24,7 @@ typedef struct _params
 	int k;
 	int l;
 	int num_pc;
+	float eps;
 } app_parameters;
 
 void init_app_params(app_parameters**);

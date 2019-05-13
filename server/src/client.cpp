@@ -172,6 +172,7 @@ void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 	enclave_get_id_buf(eid, top_ids, k);
 	enclave_get_res_buf(eid, chi_sq_vals, k);
 	FILE* file = fopen(ofn, "w");
+	//fprintf(stderr, "%s\n", ofn);
 	fprintf(file, "SNP_ID\tCHI_SQ_VAL\n");
 	for(int i = 0; i < k; i++)
 	{
@@ -1781,6 +1782,15 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 					}
 					(*params)->num_pc = atoi(token);
 				}
+				else if(strcmp(var_name, "EPSILON") == 0)
+				{
+					if(strcmp((*params)->app_mode, "pca_sketch") != 0)
+					{
+						fprintf(stderr, "The parameter NUM_PC is applicable only in mode pca_sketch.\n");
+						exit(1);
+					}
+					(*params)->eps = atof(token);
+				}
 				else if(strcmp(var_name, "NUM_TOP_CAND") == 0)
 				{
 					if((strcmp((*params)->app_mode, "sketch") != 0) &&
@@ -1993,18 +2003,11 @@ int main(int argc, char** argv)
 		}*/
 		else if(strcmp(params->app_mode, "pca_sketch") == 0)
 		{
-			float epsilon = 0.0;
-			switch(params->num_pc)
+			float epsilon = params->eps * params->eps;
+			if(params->num_pc / epsilon > 8192)
 			{
-				case 2:
-					epsilon = 0.022;
-					break;
-				case 3:
-					epsilon = 0.027;
-					break;
-				default:
-					fprintf(stderr, "Temporarily not supporting this range of parameters.\n");
-					exit(1);
+				fprintf(stderr, "Temporarily not supporting this range of parameters.\n");
+				exit(1);
 			}
 			app_svd_mcsk(msgio, config, params->num_files, params->num_files_case, \
 					params->chunk_size, params->l, params->output_file, \
