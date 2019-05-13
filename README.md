@@ -30,46 +30,51 @@ modify these to point to the correct locations of the libraries.
 * If you get any errors during compilation, it is quite likely due to a missing/incorrect Intel SGX installation or the related libraries. Please carefully (re)-follow the instructions provided in the "Intel® Software Guard Extensions (SGX) Remote Attestation End-to-End Sample" README below before proceeding.
 
 ##### Preprocess VCF files
-  * A sample dataset is available at http://www.humangenomeprivacy.org/2017/competition-tasks.html (Task 2: Software Guard Extension (SGX) based whole genome variants search) 
+  * The iDASH2017 dataset (chr1) is available at http://www.humangenomeprivacy.org/2017/competition-tasks.html (Task 2: Software Guard Extension (SGX) based whole genome variants search), with up to 1000 VCF files for "case" and 1000 VCF files for "control" groups. If the above link requires a password, you may want to try this one instead http://darwin.informatics.indiana.edu/diybu/individualVcf.tar.gz. Full iDASH2017 dataset is available upon request. We also provided a toy dataset with 500 small VCF files in each group, on which SkSES is expected to run instantly.    
   
-  * For this step, start by creating an empty output directory to store the preprocessed VCF files (```*.bin```).
+  * For this step, start by creating an empty output directory to store the preprocessed VCF files (i.e., ```*.bin```).
 
-  * Then, modify the input/output paths in the script compress_vcf/compress_full.sh to point to the correct directories.
+  * Then, modify the input/output paths in the script ```compress_vcf/compress_full.sh``` to point to the correct directories.
 
   * Finally, run the script to have all VCF files preprocessed.
 
-  * NOTE: Since the addition of sketching support, the preprocessed files need to be in a single directory. Therefore, you may modify the provided script compress_full.sh to directly output to a single directory.
+  * NOTE: Since the addition of sketching support, the preprocessed files need to be in a single directory. Therefore, you may modify the provided script ```compress_full.sh``` to directly output to a single directory.
 
 ##### Run the Service Provider
 
- *  Set the desired parameters for the service_provider. Sample parameter settings are provided in the corresponding directory, i.e. ```/service_provider```.
+ *  Set the desired parameters for the ```service_provider```. Sample parameter settings are provided in directory ```params```, i.e. ```params/sp_params_*.txt```.
 
  * For more information about the interpretation of each parameter, please consult ```/service_provider/src/sp_param.h```.
 
  * For a test run, update the port number according to your network environment and make sure that the specified ports are not blocked by the firewall.
 
- * Once the parameters are set up, simply run:
+ * Once the parameters are set up, simply run (you may create your own directory for the parameters):
  
 ```
-./sp sp_params.txt
+cd ../service_provider
+./sp ../params/sp_params_*.txt
 ```
+(* should be replaced by ```hash```, ```sketch``` or ```pca``` here)
 
 ##### Run the Server
 
- *  Set the desired parameters for the server. Sample parameter settings are provided in the corresponding directory, i.e. ```/server```.
+ *  Set the desired parameters for the ```server```. Sample parameter settings are provided in directory ```params```, i.e. ```params/app_params_*.txt```.
 
  * For more information about the interpretations of each parameter, please consult ```/server/include/app_param.h```.
 
  * For a test run, users need to update the port number according to your network environment and make sure that the specified ports are not blocked by the firewall.
 
- * Once the parameters are set up, simply run:
+ * Once the parameters are set up, simply run (again, you may create your own directory for the parameters):
  
 ```
-./app app_params.txt
+cd ../server
+./app ../params/app_params_*.txt
 ```
+(* should be replaced by ```hash```, ```sketch``` or ```pca``` here)
+
 ##### Expected Output
 
-  * A single plaintext file (name should be specified in app_params.txt) under the ```/server``` directory which contains the top-k SNPs from your input VCF files and their chi-square (or Cochran-Armitage trend chi-square) values.   
+  * A single plaintext file (name should be specified in ```app_params_*.txt```) under the ```server``` directory which contains the top-k SNPs from your input VCF files and their chi-square (or Cochran-Armitage trend chi-square) values.   
 
 #### License
 
