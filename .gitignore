@@ -13,3 +13,5 @@ top_snps
 test_data/bin
 test_data/count_unique.py
 test_data/unique_snps.bin
+compress_vcf/compress_vcf
+compress_vcf/extract_uniq_snps
