@@ -32,17 +32,13 @@ modify these to point to the correct locations of the libraries.
 ##### Preprocess VCF files
   * A sample dataset is available at http://www.humangenomeprivacy.org/2017/competition-tasks.html (Task 2: Software Guard Extension (SGX) based whole genome variants search) 
   
-  * For this step, start by creating two empty output directories. These are where the
-preprocessed VCF files will be stored.
+  * For this step, start by creating an empty output directory to store the preprocessed VCF files (```*.bin```).
 
-  * Then, modify the input/output paths in the script compress_vcf/compress_full.sh to point
-to the correct directories.
+  * Then, modify the input/output paths in the script compress_vcf/compress_full.sh to point to the correct directories.
 
   * Finally, run the script to have all VCF files preprocessed.
 
-  * NOTE: Since the addition of sketching support, the preprocessed files need to be ina single directory,
-therefore copy the previously created files from both output directories into a new one. Or you may modify the
-provided script compress_full.sh to directly output to a single directory.
+  * NOTE: Since the addition of sketching support, the preprocessed files need to be in a single directory. Therefore, you may modify the provided script compress_full.sh to directly output to a single directory.
 
 ##### Run the Service Provider
 
