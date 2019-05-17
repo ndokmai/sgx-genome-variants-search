@@ -28,6 +28,16 @@ int cmpfunc_float(const void* a, const void* b)
 	return ((fa > fb) - (fa < fb));
 }
 
+int cmpfunc_pair(const void *a, const void *b)
+{
+	res_pair pa = *(const res_pair*) a;
+	res_pair pb = *(const res_pair*) b;
+	int d = (pa.value > pb.value) - (pa.value < pa.value);
+	//if(d == 0)
+	//	return (pa.key - pb.key);
+	return d;
+}
+
 // Hash function: h(x) = (a * x + b) mod p, where p = 2 ^ 31 - 1
 uint32_t cal_hash(uint64_t x, uint64_t a, uint64_t b)
 {

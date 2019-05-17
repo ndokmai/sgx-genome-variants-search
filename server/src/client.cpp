@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <getopt.h>
 #include <string.h>
 #include <vector>
@@ -17,6 +18,7 @@
 #include "crypto.h"
 #include "config.h"
 #include "sgx_detect.h"
+#include "../Enclave/util.h"
 #if !defined(SGX_HW_SIM)&&!defined(_WIN32)
 #include "sgx_stub.h"
 #endif
@@ -41,6 +43,17 @@
 # define _rdrand64_step(x) ({ unsigned char err; asm volatile("rdrand %0; setc %1":"=r"(*x), "=qm"(err)); err; })
 
 int global_eid;
+
+int cmpfunc_pair(const void *a, const void *b)
+{
+	res_pair pa = *(const res_pair*) a;
+	res_pair pb = *(const res_pair*) b;
+	
+	int d = (pa.value > pb.value) - (pa.value < pb.value);
+	if(d == 0)
+		return (pa.key - pb.key);
+	return d;
+}
 
 void run_thread_cms(int thread_num)
 {
@@ -164,27 +177,36 @@ void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 	}
 
 	// Make an ECALL to perform the chi-squared test
+	enclave_init_id_buf(eid, k);
+	enclave_init_res_buf(eid, k);
 	rhht_init_chi_sq(eid, case_count, control_count, k);
 
 	// Make an ECALL to receive the result
-	uint32_t top_ids[k];
-	float chi_sq_vals[k];
-	enclave_get_id_buf(eid, top_ids, k);
-	enclave_get_res_buf(eid, chi_sq_vals, k);
+	res_pair *chi_sq_pairs;
+	chi_sq_pairs = (res_pair*) malloc(k * sizeof(res_pair));
+	enclave_get_res_pairs(eid, chi_sq_pairs, k);
+	qsort(chi_sq_pairs, k, sizeof(res_pair), cmpfunc_pair);
+
 	FILE* file = fopen(ofn, "w");
-	//fprintf(stderr, "%s\n", ofn);
+	if(file == NULL)
+	{
+		perror("Error opening file: ");
+	}
 	fprintf(file, "SNP_ID\tCHI_SQ_VAL\n");
 	for(int i = 0; i < k; i++)
 	{
-		fprintf(file, "%u\t%.4f\n", top_ids[i], chi_sq_vals[i]);
+		fprintf(file, "%u\t%.4f\n", chi_sq_pairs[i].key, chi_sq_pairs[i].value);
 	}
 	fclose(file);
 
 	// Stop timer
 	duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
-
 	// Report results
 	fprintf(stderr, "time: %lf\n", duration);
+
+	free(chi_sq_pairs);
+	enclave_free_id_buf(eid);
+	enclave_free_res_buf(eid);
 }
 
 void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, char *ofn)
@@ -252,18 +274,25 @@ void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint3
 	}
 
 	// Make an ECALL to perform the chi-squared test
+	enclave_init_id_buf(eid, k);
+	enclave_init_res_buf(eid, k);
 	oa_init_chi_sq(eid, case_count, control_count, k);
 
 	// Make an ECALL to receive the result
-	uint32_t top_ids[k];
-	float chi_sq_vals[k];
-	enclave_get_id_buf(eid, top_ids, k);
-	enclave_get_res_buf(eid, chi_sq_vals, k);
+	res_pair *chi_sq_pairs;
+	chi_sq_pairs = (res_pair*) malloc(k * sizeof(res_pair));
+	enclave_get_res_pairs(eid, chi_sq_pairs, k);
+	qsort(chi_sq_pairs, k, sizeof(res_pair), cmpfunc_pair);
+
 	FILE* file = fopen(ofn, "w");
+	if(file == NULL)
+	{
+		perror("Error opening file: ");
+	}
 	fprintf(file, "SNP_ID\tCHI_SQ_VAL\n");
 	for(int i = 0; i < k; i++)
 	{
-		fprintf(file, "%u\t%.4f\n", top_ids[i], chi_sq_vals[i]);
+		fprintf(file, "%u\t%.4f\n", chi_sq_pairs[i].key, chi_sq_pairs[i].value);
 	}
 	fclose(file);
 
@@ -272,6 +301,9 @@ void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint3
 
 	// Report results
 	fprintf(stderr, "time: %lf\n", duration);
+	free(chi_sq_pairs);
+	enclave_free_id_buf(eid);
+	enclave_free_res_buf(eid);
 }
 
 void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, char *ofn)
@@ -339,18 +371,25 @@ void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 	}
 
 	// Make an ECALL to perform the chi-squared test
+	enclave_init_id_buf(eid, k);
+	enclave_init_res_buf(eid, k);
 	cmtf_init_chi_sq(eid, case_count, control_count, k);
 
 	// Make an ECALL to receive the result
-	uint32_t top_ids[k];
-	float chi_sq_vals[k];
-	enclave_get_id_buf(eid, top_ids, k);
-	enclave_get_res_buf(eid, chi_sq_vals, k);
+	res_pair *chi_sq_pairs;
+	chi_sq_pairs = (res_pair*) malloc(k * sizeof(res_pair));
+	enclave_get_res_pairs(eid, chi_sq_pairs, k);
+	qsort(chi_sq_pairs, k, sizeof(res_pair), cmpfunc_pair);
+
 	FILE* file = fopen(ofn, "w");
+	if(file == NULL)
+	{
+		perror("Error opening file: ");
+	}
 	fprintf(file, "SNP_ID\tCHI_SQ_VAL\n");
 	for(int i = 0; i < k; i++)
 	{
-		fprintf(file, "%u\t%.4f\n", top_ids[i], chi_sq_vals[i]);
+		fprintf(file, "%u\t%.4f\n", chi_sq_pairs[i].key, chi_sq_pairs[i].value);
 	}
 	fclose(file);
 
@@ -360,6 +399,9 @@ void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 	// Report results
 	//fprintf(stderr, "result: %lu\n", (unsigned long) result);
 	fprintf(stderr, "time: %lf\n", duration);
+	free(chi_sq_pairs);
+	enclave_free_id_buf(eid);
+	enclave_free_res_buf(eid);
 }
 
 void app_csk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int l, char *ofn, \

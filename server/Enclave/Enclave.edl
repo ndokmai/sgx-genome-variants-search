@@ -5,6 +5,7 @@ enclave
 	include "sgx_trts.h"
 	include "sgx_utils.h"
 	include "sgx_tkey_exchange.h"
+	include "util.h"
 
 	from "sgx_tkey_exchange.edl" import *;
 
@@ -33,19 +34,27 @@ enclave
 
 		// Public ECALL interface for getting results out of the enclave
 		// NOTE: This output is NOT encrypted since this a proof of concept
-		public void enclave_get_res([out, size = 524288] uint32_t* res);
+		//public void enclave_get_res([out, size = 524288] uint32_t* res);
 		//public void enclave_get_res_buf([out, size = 4000] uint32_t* res);
-		public void enclave_get_mcsk_res([out, size = 8004] float* my_res);
-		public void enclave_get_mcsk_sigma([out, size = 8000] float* my_res);
-		public void enclave_get_eig_buf([out, size = 16000] float* my_res);
-		public void enclave_ortho([out, size = 24] float* my_res);
-		public void mcsk_pull_row();
-		public void enclave_get_mem_used([out, size = 4] uint32_t* mem_usage);
-		public void enclave_get_id_buf([out, size = 40] uint32_t* id, int k);
-		//public void enclave_get_test_buf([out, size = 20] uint16_t* res);
-		public void enclave_get_res_buf([out, size = 40] float* countf, int k);
-		public void enclave_get_mh_ids([out, size = 256] uint32_t* ids, int l);
-		public void enclave_get_mh_vals([out, size = 128] uint16_t* vals, int l);
+		//public void enclave_get_mcsk_res([out, size = 8004] float* my_res);
+		//public void enclave_get_mcsk_sigma([out, size = 8000] float* my_res);
+		//public void enclave_get_eig_buf([out, size = 16000] float* my_res);
+		//public void enclave_ortho([out, size = 24] float* my_res);
+		//public void mcsk_pull_row();
+		//public void enclave_get_mem_used([out, size = 4] uint32_t* mem_usage);
+		//public void enclave_init_test_buf(int ENC_BUFF_LEN);
+		//public void enclave_get_test_buf([user_check] uint16_t* res, uint32_t len);
+		//public void enclave_free_test_buf();
+		public void enclave_get_mh_ids([user_check] uint32_t* ids, int l);
+		public void enclave_get_mh_vals([user_check] uint16_t* vals, int l);
+		public void enclave_get_mh_pairs([user_check] res_pair* pairs, int l);
+		public void enclave_init_id_buf(int ENC_BUFF_LEN);
+		public void enclave_get_id_buf([user_check] uint32_t* id, int k);
+		public void enclave_free_id_buf();
+		public void enclave_init_res_buf(int ENC_BUFF_LEN);
+		public void enclave_get_res_buf([user_check] float* countf, int k);
+		public void enclave_get_res_pairs([user_check] res_pair* pairs, int k);
+		public void enclave_free_res_buf();
 
 		// Open-Addressing Hash-Table public ECALL interface
 		public void enclave_init_oa();

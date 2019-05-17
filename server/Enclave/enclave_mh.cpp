@@ -315,3 +315,15 @@ void get_mh_vals(uint16_t *vals, uint32_t l)
         }
 }
 
+
+void get_mh_pairs(res_pair *pairs, uint32_t l)
+{
+        if(l <= mh->max_heap_size)
+        {
+		for(uint32_t i = 0; i < l; i++)
+		{
+			pairs[i].key = mh->mh_array[i].key;
+			pairs[i].value = mh->mh_array[i].val;
+		}
+        }
+}

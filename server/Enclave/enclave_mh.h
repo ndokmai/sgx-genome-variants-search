@@ -1,7 +1,8 @@
 #ifndef __ENCLAVE_MIN_HEAP_H
 #define __ENCLAVE_MIN_HEAP_H
 
-#include "inttypes.h"
+#include <inttypes.h>
+#include "util.h"
 
 #define MAX_ALLOWED_SIZE	(1 << 17)
 
@@ -49,5 +50,6 @@ void min_heapify_down(uint32_t);
 void min_heapify_down_f(uint32_t);
 void get_mh_keys(uint32_t*, uint32_t);
 void get_mh_vals(uint16_t*, uint32_t);
+void get_mh_pairs(res_pair*, uint32_t);
 
 #endif

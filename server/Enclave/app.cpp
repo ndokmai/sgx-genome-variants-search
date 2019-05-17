@@ -20,8 +20,6 @@
 #define ALLELE_HETEROZYGOUS	1
 #define	ALLELE_HOMOZYGOUS	2
 
-#define	ENC_RES_BUF_LEN		1000
-
 #define OA_INIT_CAPACITY	(1 << 23)
 #define RHHT_INIT_CAPACITY	(1 << 23)
 #define CMTF_NUM_BUCKETS	(1 << 21)
@@ -30,24 +28,20 @@
 #define	L2_CACHE_SIZE		(1 << 17)
 #define	PARTITION_SIZE		(1 << 20)
 
-// Global Enclave Buffers
-// TODO: Dynamically allocating and keeping track of this might be a good idea
+// Global Enclave Buffers and Variables
+/* For testing the SVD correctness
 float enclave_mcsk_buf[2001];
-//uint32_t enclave_res_buf[ENC_RES_BUF_LEN];
 float enclave_eig_buf[4000];
-float ortho_res[6];
-uint8_t* ptxt;
+float ortho_res[6];*/
+uint8_t *ptxt;
 uint8_t ptxt_len;
-//uint32_t column_number = 0;
 uint32_t file_idx = 0;
-//uint32_t file_idx_ = 0;
-float* phenotypes;
+float *phenotypes;
 float *u;
 float **enclave_eig;
-uint32_t enc_id_buf[ENC_RES_BUF_LEN];
-float enc_res_buf[ENC_RES_BUF_LEN];
-//uint16_t enc_temp_buf[10];
-//int test_i = 0;
+uint32_t *enc_id_buf = NULL;
+float *enc_res_buf = NULL;
+float *enc_temp_buf = NULL;
 int cms_st_length_inflation = 0;
 int MCSK_WIDTH = 0;
 int MCSK_NUM_PC = 0;
@@ -57,13 +51,13 @@ void enclave_reset_file_idx()
 	file_idx = 0;
 }
 
-void mcsk_pull_row()
+/*void mcsk_pull_row()
 {
 	for(size_t  i = 0 ; i < 2001; i++)
 	{
 		enclave_mcsk_buf[i] = m_mcsk->msketchf[0][i];
 	}
-}
+}*/
 
 void enclave_init_mcsk(int MCSK_WIDTH, int MCSK_NUM_PC, float MCSK_EPS)
 {
@@ -1678,10 +1672,12 @@ void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 			if(patient_status == 1)
 			{
 				new_elem->case_count = 2;
+				new_elem->control_count = 0;
 			}
 			else
 			{
 				new_elem->control_count = 2;
+				new_elem->case_count = 0;
 			}
 			new_elem->next = NULL;
 			*head_ptr = new_elem;
@@ -1735,10 +1731,12 @@ void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 		if(patient_status == 1)
 		{
 			new_elem->case_count = 2;
+			new_elem->control_count = 0;
 		}
 		else
 		{
 			new_elem->control_count = 2;
+			new_elem->case_count = 0;
 		}
 		new_elem->next = *head_ptr;
 		*head_ptr = new_elem;
@@ -1765,10 +1763,12 @@ void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 			if(patient_status == 1)
 			{
 				new_elem->case_count = 1;
+				new_elem->control_count = 0;
 			}
 			else
 			{
 				new_elem->control_count = 1;
+				new_elem->case_count = 0;
 			}
 			new_elem->next = NULL;
 			*head_ptr = new_elem;
@@ -1822,10 +1822,12 @@ void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 		if(patient_status == 1)
 		{
 			new_elem->case_count = 1;
+			new_elem->control_count = 0;
 		}
 		else
 		{
 			new_elem->control_count = 1;
+			new_elem->case_count = 0;
 		}
 		new_elem->next = *head_ptr;
 		*head_ptr = new_elem;
@@ -2198,58 +2200,54 @@ void enclave_init_mh_f(int MH_INIT_CAPACITY)
 /***** END: Enclave Min-Heap Public ECALL Interface *****/
 
 /***** BEGIN: Enclave Result/Output Public ECALL Interface *****/
-void enclave_get_res(uint32_t* res)
+/*void enclave_get_res(uint32_t* res)
 {
 	for(size_t i = 0; i < mh->curr_heap_size; i++)
 	{
 		res[i] = mh->mh_array[i].key;
 	}
-}
-
-/*void enclave_get_res_buf(uint32_t* res_buf)
-{
-	for(size_t i = 0; i < 1000; i++)
-	{
-		res_buf[i] = enclave_res_buf[i];
-	}
 }*/
-/***** END: Enclave Result/Output Public ECALL Interface *****/
 
-void enclave_get_mcsk_res(float* my_res)
+/*void enclave_get_mcsk_res(float* my_res)
 {
 	for(size_t i = 0; i < 2001; i++)
 	{
 		my_res[i] = enclave_mcsk_buf[i];
 	}
-}
+}*/
 
-void enclave_get_mcsk_sigma(float* my_res)
+/*void enclave_get_mcsk_sigma(float* my_res)
 {
 	for(size_t i = 0; i < 2000; i++)
 	{
 		my_res[i] = enclave_mcsk_buf[i];
 	}
-}
+}*/
 
-void enclave_get_eig_buf(float* my_res)
+/*void enclave_get_eig_buf(float* my_res)
 {
 	for(size_t i = 0; i < 4000; i++)
 	{
 		my_res[i] = enclave_eig_buf[i];
 	}
-}
+}*/
 
-void enclave_ortho(float* my_res)
+/*void enclave_ortho(float* my_res)
 {
 	for(size_t i = 0; i < 6; i++)
 	{
 		my_res[i] = ortho_res[i];
 	}
-}
+}*/
 
-void enclave_get_mem_used(uint32_t* mem_usage)
+/*void enclave_get_mem_used(uint32_t* mem_usage)
 {
 	mem_usage[0] = mem_used;
+}*/
+
+void enclave_init_id_buf(int ENC_BUFF_LEN)
+{
+	enc_id_buf = (uint32_t*) malloc(ENC_BUFF_LEN * sizeof(uint32_t));
 }
 
 void enclave_get_id_buf(uint32_t* id, int k)
@@ -2260,6 +2258,16 @@ void enclave_get_id_buf(uint32_t* id, int k)
 	}
 }
 
+void enclave_free_id_buf()
+{
+	free(enc_id_buf);
+}
+
+void enclave_init_res_buf(int ENC_BUFF_LEN)
+{
+	enc_res_buf = (float*) malloc(ENC_BUFF_LEN * sizeof(float));
+}
+
 void enclave_get_res_buf(float* countf, int k)
 {
 	for(int i = 0; i < k; i++)
@@ -2268,13 +2276,37 @@ void enclave_get_res_buf(float* countf, int k)
 	}
 }
 
-/*void enclave_get_test_buf(uint16_t *res)
+void enclave_get_res_pairs(res_pair* pairs, int k)
 {
-	for(int i = 0; i < 10; i++)
+	for(int i = 0; i < k; i++)
+	{
+		pairs[i].key = enc_id_buf[i];
+		pairs[i].value = enc_res_buf[i];
+	}
+}
+
+void enclave_free_res_buf()
+{
+	free(enc_res_buf);
+}
+
+void enclave_init_temp_buf(int ENC_BUFF_LEN)
+{
+	enc_temp_buf = (float*) malloc(ENC_BUFF_LEN * sizeof(float));
+}
+
+void enclave_get_temp_buf(float *res, int len)
+{
+	for(int i = 0; i < len; i++)
 	{
 		res[i] = enc_temp_buf[i];
 	}
-}*/
+}
+
+void enclave_free_temp_buf()
+{
+	free(enc_temp_buf);
+}
 
 void enclave_get_mh_ids(uint32_t* ids, int l)
 {
@@ -2285,3 +2317,9 @@ void enclave_get_mh_vals(uint16_t* vals, int l)
 {
 	get_mh_vals(vals, l);
 }
+
+void enclave_get_mh_pairs(res_pair* pairs, int l)
+{
+	get_mh_pairs(pairs, l);
+}
+/***** END: Enclave Result/Output Public ECALL Interface *****/
