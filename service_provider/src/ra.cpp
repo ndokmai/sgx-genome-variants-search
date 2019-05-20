@@ -87,7 +87,7 @@ char verbose = 0;
 int parse_config(int argc, char *argv[], config_t &config)
 {
     char flag_spid = 0;
-    char flag_pubkey = 0;
+//  char flag_pubkey = 0;
     char flag_cert = 0;
     char flag_ca = 0;
     char flag_usage = 0;

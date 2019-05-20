@@ -258,7 +258,7 @@ void run_sp(MsgIO* msgio, uint32_t nf, char* fdir, char* ufname, uint32_t csz, i
 	else
 	{
 		fprintf(stderr, "Error opening input VCF directory\n");
-		return 1;
+		exit(EXIT_FAILURE);
 	}
 
 	// Make sure we've processed all files
@@ -324,7 +324,7 @@ void run_sp(MsgIO* msgio, uint32_t nf, char* fdir, char* ufname, uint32_t csz, i
 			break;
 	}
 
-	return 0;
+	return;
 }
 
 void new_parse(char* param_path, parameters** params, config_t& config)
@@ -335,10 +335,10 @@ void new_parse(char* param_path, parameters** params, config_t& config)
 
 	// Config stuff
 	char flag_spid = 0;
-	char flag_pubkey = 0;
+//	char flag_pubkey = 0;
 	char flag_cert = 0;
 	char flag_ca = 0;
-	char flag_usage = 0;
+//	char flag_usage = 0;
 	config.sigrl = NULL;
 	config.port = NULL;
 	config.flag_stdio = 0;

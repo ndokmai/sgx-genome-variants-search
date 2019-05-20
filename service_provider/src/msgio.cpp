@@ -296,7 +296,7 @@ again1:
     }
     while(idx != toread_bytes) {
 again2:
-        bread = recv(s, *dest+idx, toread_bytes - idx, 0);
+        bread = recv(s, (void*) (((size_t) *dest) + idx), toread_bytes - idx, 0);
         if ( bread == -1 ) {
             if ( errno == EINTR ) goto again2;
             perror("recv");
@@ -331,7 +331,7 @@ again:
 		}
 		fwrite(wbuffer.c_str(), 1, bsent, stdout);
 
-		if ( bsent == len ) {
+		if ( bsent == (ssize_t) len ) {
 			wbuffer.clear();
 			return;
 		}

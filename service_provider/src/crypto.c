@@ -932,7 +932,7 @@ int init_prg()
 void strong_rand(unsigned char* buffer, size_t len)
 {
     int rc = RAND_bytes(buffer, len);
-    unsigned long err = ERR_get_error();
+//	unsigned long err = ERR_get_error();
     if(rc != 1) {
         error_type= e_crypto;
     }
