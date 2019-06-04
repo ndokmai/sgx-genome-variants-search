@@ -124,6 +124,10 @@ MsgIO::MsgIO(const char *peer, const char *port)
 		eprintf("Listening for connections on port %s\n", port);
 	} else { // Client here
 	}
+	
+	if(init_prg()==-1) {
+        	eprintf("OpenSSL seeding failed\n");
+	}
 }
 
 MsgIO::~MsgIO()
