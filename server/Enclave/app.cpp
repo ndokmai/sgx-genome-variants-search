@@ -20,10 +20,6 @@
 #define ALLELE_HETEROZYGOUS	1
 #define	ALLELE_HOMOZYGOUS	2
 
-#define OA_INIT_CAPACITY	(1 << 23)
-#define RHHT_INIT_CAPACITY	(1 << 23)
-#define CMTF_NUM_BUCKETS	(1 << 21)
-
 #define L1_CACHE_SIZE		(1 << 14)
 #define	L2_CACHE_SIZE		(1 << 17)
 #define	PARTITION_SIZE		(1 << 20)
@@ -45,6 +41,7 @@ float *enc_temp_buf = NULL;
 int cms_st_length_inflation = 0;
 int MCSK_WIDTH = 0;
 int MCSK_NUM_PC = 0;
+int test = 0;
 
 void enclave_reset_file_idx()
 {
@@ -645,6 +642,11 @@ void enclave_init_cms(int CMS_WIDTH, int CMS_DEPTH)
 	cms_st_length_inflation = CMS_DEPTH >> 2;
 }
 
+void enclave_free_cms()
+{
+	cms_free();
+}
+
 void enclave_decrypt_store_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {
 	// Buffer to hold the secret key
@@ -985,6 +987,11 @@ void enclave_init_csk(int CSK_WIDTH, int CSK_DEPTH)
 void enclave_init_csk_f(int CSK_WIDTH, int CSK_DEPTH)
 {
 	csk_init_f(CSK_WIDTH, CSK_DEPTH);
+}
+
+void enclave_free_csk()
+{
+	csk_free();
 }
 
 void enclave_decrypt_store_csk(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
@@ -1432,7 +1439,7 @@ void enclave_decrypt_query_csk_f(sgx_ra_context_t ctx, uint8_t* ciphertext, size
 /***** END: Enclave Count-Sketch Public Interface *****/
 	
 /***** BEGIN: Enclave Open-Addressing Hash Table Public Interface *****/
-void enclave_init_oa()
+void enclave_init_oa(int OA_INIT_CAPACITY)
 {
 	oa_allocate_table(OA_INIT_CAPACITY);
 }
@@ -1525,10 +1532,15 @@ void enclave_decrypt_process_oa(sgx_ra_context_t ctx, uint8_t* ciphertext, size_
 	// We've processed the data, now clear it
 	delete[] plaintext;
 }
+
+void enclave_free_oa()
+{
+	oa_deallocate_table();
+}
 /***** END: Enclave Open-Addressing Hash Table Public Interface *****/
 
 /***** BEGIN: Enclave Robin-Hood Hash Table Public Interface *****/
-void enclave_init_rhht()
+void enclave_init_rhht(int RHHT_INIT_CAPACITY)
 {
 	allocate_table(RHHT_INIT_CAPACITY);
 }
@@ -1621,10 +1633,15 @@ void enclave_decrypt_process_rhht(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 	// We've processed the data, now clear it
 	delete[] plaintext;
 }
+
+void enclave_free_rhht()
+{
+	deallocate_table();
+}
 /***** END: Enclave Robin-Hood Hash Table Public Interface *****/
 
 /***** BEGIN: Enclave Chained-Move-to-Front Hash Table Public Interface *****/
-void enclave_init_cmtf()
+void enclave_init_cmtf(int CMTF_NUM_BUCKETS)
 {
 	cmtf_allocate_table(CMTF_NUM_BUCKETS);
 }
@@ -1838,6 +1855,10 @@ void enclave_decrypt_process_cmtf(sgx_ra_context_t ctx, uint8_t* ciphertext, siz
 	delete[] plaintext;
 }
 
+void enclave_free_cmtf()
+{
+	cmtf_deallocate_table();
+}
 /***** END: Enclave Chained-Move-to-Front Hash Table Public Interface *****/
 
 /***** BEGIN: Enclave Chi-Squared Test Functions *****/
@@ -1954,13 +1975,23 @@ float cat_chi_sq(uint16_t ssqg, uint16_t total, float dotprod, float sx, float s
 	}
 	chi_sq_val = total * dotprod - sx * sy;
 	chi_sq_val = (chi_sq_val * chi_sq_val) * total / ((total * sx2 - sx * sx) * (total * sy2 - sy * sy));
+	if(isnan(chi_sq_val) && test == 0)
+	{
+		enc_temp_buf[0] = ssqg;
+		enc_temp_buf[1] = total;
+		enc_temp_buf[2] = dotprod;
+		enc_temp_buf[3] = sx;
+		enc_temp_buf[4] = sy;
+		enc_temp_buf[5] = sy2;
+		enc_temp_buf[6] = pc_projections[0];
+		enc_temp_buf[7] = pc_projections[1];
+		test = 1;
+	}
 	return chi_sq_val;
 }
 
 void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 {
-	uint32_t top_k_ids[k];
-	float top_k_chi_sq[k];
 	int num_used = 0;
 	float chi_sq_val;
 	for(uint32_t i = 0; i < rhht_snp_table->capacity; i++)
@@ -1973,8 +2004,8 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 			// If the top-k array is not full, add current snp without any checks
 			if(num_used < k)
 			{
-				top_k_ids[num_used] = rhht_snp_table->buffer[i].key;
-				top_k_chi_sq[num_used] = chi_sq_val;
+				enc_id_buf[num_used] = rhht_snp_table->buffer[i].key;
+				enc_res_buf[num_used] = chi_sq_val;
 				num_used = num_used + 1;
 			}
 			else
@@ -1983,7 +2014,7 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 				int index_min = 0;
 				for(int j = 1; j < k; j++)
 				{
-					if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
+					if(enc_res_buf[j] < enc_res_buf[index_min])
 					{
 						index_min = j;
 					}
@@ -1991,29 +2022,18 @@ void rhht_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 
 				// If the chi squared value of the current element is greater than that of index_min
 				// Replace the element at index_min by the current element 
-				if(chi_sq_val > top_k_chi_sq[index_min])
+				if(chi_sq_val > enc_res_buf[index_min])
 				{
-					top_k_ids[index_min] = rhht_snp_table->buffer[i].key;
-					top_k_chi_sq[index_min] = chi_sq_val;
+					enc_id_buf[index_min] = rhht_snp_table->buffer[i].key;
+					enc_res_buf[index_min] = chi_sq_val;
 				}
 			}
 		}
-	}
-	
-	for(int i = 0; i < k; i++)
-	{
-		//double pval = pochisq((double) top_k_chi_sq[i]);
-
-		// Fill in output buffer
-		enc_id_buf[i] = top_k_ids[i];
-		enc_res_buf[i] = top_k_chi_sq[i];
-	}
+	}	
 }
 
 void rhht_init_cat_chi_sq(uint16_t total, int k)
 {
-	uint32_t top_k_ids[k];
-	float top_k_chi_sq[k];
 	int num_used = 0;
 	float chi_sq_val;
 
@@ -2038,8 +2058,8 @@ void rhht_init_cat_chi_sq(uint16_t total, int k)
 			// If the top-k array is not full, add current snp without any checks
 			if(num_used < k)
 			{
-				top_k_ids[num_used] = rhht_snp_table_pcc->buffer[i].key;
-				top_k_chi_sq[num_used] = chi_sq_val;
+				enc_id_buf[num_used] = rhht_snp_table_pcc->buffer[i].key;
+				enc_res_buf[num_used] = chi_sq_val;
 				num_used = num_used + 1;
 			}
 			else
@@ -2048,7 +2068,7 @@ void rhht_init_cat_chi_sq(uint16_t total, int k)
 				int index_min = 0;
 				for(uint32_t j = 1; j < k; j++)
 				{
-					if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
+					if(enc_res_buf[j] < enc_res_buf[index_min])
 					{
 						index_min = j;
 					}
@@ -2056,29 +2076,23 @@ void rhht_init_cat_chi_sq(uint16_t total, int k)
 
 				// If the chi squared value of the current element is greater than that of index_min
 				// Replace the element at index_min by the current element
-				if(chi_sq_val > top_k_chi_sq[index_min])
+				if(chi_sq_val > enc_res_buf[index_min])
 				{
-					top_k_ids[index_min] = rhht_snp_table_pcc->buffer[i].key;
-					top_k_chi_sq[index_min] = chi_sq_val;
+					enc_id_buf[index_min] = rhht_snp_table_pcc->buffer[i].key;
+					enc_res_buf[index_min] = chi_sq_val;
 				}
 			}
 		}
 	}
-	
-	for(int i = 0; i < k; i++)
-	{
-		//double pval = pochisq((double) top_k_chi_sq[i]);
+}
 
-		// Fill in output buffer 
-		enc_id_buf[i] = top_k_ids[i];
-		enc_res_buf[i] = top_k_chi_sq[i];
-	}
+void enclave_free_rhht_pcc()
+{
+	deallocate_table_pcc();
 }
 
 void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 {
-	uint32_t top_k_ids[k];
-	float top_k_chi_sq[k];
 	int num_used = 0;
 	float chi_sq_val;
 	for(uint32_t i = 0; i < cmtf_snp_table->num_buckets; i++)
@@ -2094,8 +2108,8 @@ void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 				// If the top-k array is not full, add current snp without any checks
 				if(num_used < k)
 				{
-					top_k_ids[num_used] = temp->key;
-					top_k_chi_sq[num_used] = chi_sq_val;
+					enc_id_buf[num_used] = temp->key;
+					enc_res_buf[num_used] = chi_sq_val;
 					num_used = num_used + 1;
 				}
 				else
@@ -2104,7 +2118,7 @@ void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 					int index_min = 0;
 					for(int j = 1; j < k; j++)
 					{
-						if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
+						if(enc_res_buf[j] < enc_res_buf[index_min])
 						{
 							index_min = j;
 						}
@@ -2112,31 +2126,20 @@ void cmtf_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 
 					// If the chi squared value of the current element is greater than that of index_min
 					// Replace the element at index_min by the current element
-					if(chi_sq_val > top_k_chi_sq[index_min])
+					if(chi_sq_val > enc_res_buf[index_min])
 					{
-						top_k_ids[index_min] = temp->key;
-						top_k_chi_sq[index_min] = chi_sq_val;
+						enc_id_buf[index_min] = temp->key;
+						enc_res_buf[index_min] = chi_sq_val;
 					}
 				}
 				temp = temp->next;
 			}
 		}
 	}
-
-	for(int i = 0; i < k; i++)
-	{
-		//double pval = pochisq((double) top_k_chi_sq[i]);
-
-		// Fill in output buffer 
-		enc_id_buf[i] = top_k_ids[i];
-		enc_res_buf[i] = top_k_chi_sq[i];
-	}
 }
 
 void oa_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 {
-	uint32_t top_k_ids[k];
-	float top_k_chi_sq[k];
 	int num_used = 0;
 	float chi_sq_val;
 	for(uint32_t i = 0; i < oaht->capacity; i++)
@@ -2149,8 +2152,8 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 			// If the top-k array is not full, add current snp without any checks
 			if(num_used < k)
 			{
-				top_k_ids[num_used] = oaht->buffer[i].key;
-				top_k_chi_sq[num_used] = chi_sq_val;
+				enc_id_buf[num_used] = oaht->buffer[i].key;
+				enc_res_buf[num_used] = chi_sq_val;
 				num_used = num_used + 1;
 			}
 			else
@@ -2159,7 +2162,7 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 				int index_min = 0;
 				for(int j = 1; j < k; j++)
 				{
-					if(top_k_chi_sq[j] < top_k_chi_sq[index_min])
+					if(enc_res_buf[j] < enc_res_buf[index_min])
 					{
 						index_min = j;
 					}
@@ -2167,22 +2170,13 @@ void oa_init_chi_sq(uint16_t case_total, uint16_t control_total, int k)
 
 				// If the chi squared value of the current element is greater than that of index_min
 				// Replace the element at index_min by the current element
-				if(chi_sq_val > top_k_chi_sq[index_min])
+				if(chi_sq_val > enc_res_buf[index_min])
 				{
-					top_k_ids[index_min] = oaht->buffer[i].key;
-					top_k_chi_sq[index_min] = chi_sq_val;
+					enc_id_buf[index_min] = oaht->buffer[i].key;
+					enc_res_buf[index_min] = chi_sq_val;
 				}
 			}
 		}
-	}
-
-	for(int i = 0; i < k; i++)
-	{
-		//double pval = pochisq((double) top_k_chi_sq[i]);
-
-		// Fill in output buffer 
-		enc_id_buf[i] = top_k_ids[i];
-		enc_res_buf[i] = top_k_chi_sq[i];
 	}
 }
 /***** END: Enclave Chi-Sqaured Test Functions *****/
@@ -2196,6 +2190,11 @@ void enclave_init_mh(int MH_INIT_CAPACITY)
 void enclave_init_mh_f(int MH_INIT_CAPACITY)
 {
 	allocate_heap_f(MH_INIT_CAPACITY);
+}
+
+void enclave_free_mh()
+{
+	free_heap();
 }
 /***** END: Enclave Min-Heap Public ECALL Interface *****/
 

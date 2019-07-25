@@ -27,3 +27,24 @@ void cmtf_allocate_table(uint32_t num_buckets)
 		cmtf_snp_table->buckets[i] = NULL;
 	}
 }
+
+void cmtf_deallocate_table()
+{
+	uint32_t num_buckets = cmtf_snp_table->num_buckets;
+	for(size_t i = 0; i < num_buckets; i++)
+	{
+		if(cmtf_snp_table->buckets[i] != NULL)
+		{
+			struct node* head_ptr = cmtf_snp_table->buckets[i];
+			struct node* temp;
+			while (head_ptr != NULL)
+			{
+				temp = head_ptr;
+				head_ptr = head_ptr->next;
+				free(temp);
+			}
+		}
+	}
+	free(cmtf_snp_table->buckets);
+	free(cmtf_snp_table);
+}

@@ -32,9 +32,10 @@ int cmpfunc_pair(const void *a, const void *b)
 {
 	res_pair pa = *(const res_pair*) a;
 	res_pair pb = *(const res_pair*) b;
-	int d = (pa.value > pb.value) - (pa.value < pa.value);
-	//if(d == 0)
-	//	return (pa.key - pb.key);
+	
+	int d = (pa.value > pb.value) - (pa.value < pb.value);
+	if(d == 0)
+		return (pa.key - pb.key);
 	return d;
 }
 

@@ -13,10 +13,11 @@ typedef struct _params
 	char* app_mode;
 	char* output_file;
 	int hash_option;
+	int num_buckets;
+	int init_capacity;
 	int sketch_mode;
 	int sketch_width;
 	int sketch_depth;
-	int sketch_rup;
 	int sketch_cand_only;
 	uint32_t num_files;
 	uint32_t num_files_case;

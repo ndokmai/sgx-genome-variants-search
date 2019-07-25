@@ -58,7 +58,11 @@ struct rhht_table_pcc
 
 void allocate_table(uint32_t);
 
+void deallocate_table();
+
 void allocate_table_pcc(uint32_t, uint8_t);
+
+void deallocate_table_pcc();
 
 void construct(uint32_t, uint32_t, uint16_t, uint16_t);
 

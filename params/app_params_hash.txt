@@ -6,17 +6,23 @@ PORT_NUMBER=7777
 
 APP_MODE=basic
 
-HASH_OPTION=oa
+HASH_OPTION=cmtf
 
-NUM_FILES=1000
+NUM_FILES=2000
 
-NUM_CASE_FILES=500
+NUM_CASE_FILES=1000
 
 CHUNK_SIZE=500000
 
-NUM_TOP_SNPS=10
+NUM_TOP_SNPS=100
 
-OUTPUT_FILE=../server/top_snps_oa.txt
+# FOR OA AND RHHT ONLY
+#INIT_CAPACITY=23
+
+# FOR CMTF ONLY
+#CMTF_NUM_BUCKETS=21
+
+OUTPUT_FILE=../server/top_snps_cmtf.txt
 
 #======================================================================
 # Server options

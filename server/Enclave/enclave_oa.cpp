@@ -24,6 +24,12 @@ void oa_allocate_table(uint32_t capacity)
 	}
 }
 
+void oa_deallocate_table()
+{
+	free(oaht->buffer);
+	free(oaht);
+}
+
 void oa_construct(uint32_t index, uint32_t key, uint16_t case_count, uint16_t control_count)
 {
 	oaht->buffer[index].key = key;

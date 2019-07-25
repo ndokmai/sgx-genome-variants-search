@@ -24,4 +24,6 @@ struct cmtf_table
 
 void cmtf_allocate_table(uint32_t num_buckets);
 
+void cmtf_deallocate_table();
+
 #endif

@@ -14,11 +14,12 @@ void init_app_params(app_parameters** params)
 	(*params)->num_files_case = 0;
 	(*params)->chunk_size = 500000;
 	(*params)->k = 100;
+	(*params)->num_buckets = (1 << 21);
+	(*params)->init_capacity = (1 << 23);
 	(*params)->hash_option = 1;
 	(*params)->sketch_mode = 1;
 	(*params)->sketch_width = (1 << 18);
 	(*params)->sketch_depth = 12;
-	(*params)->sketch_rup = 0;
 	(*params)->l = (1 << 17);
 	(*params)->sketch_cand_only = 0;
 	(*params)->num_pc = 2;
@@ -40,12 +41,15 @@ void print_app_params(app_parameters* params)
 		{
 			case 0:
 				fprintf(stderr, "%-30s%s\n","HASH_OPTION:", "oa");
+				fprintf(stderr, "%-30s%d\n","INIT_CAPACITY:", params->init_capacity);
 				break;
 			case 2:
 				fprintf(stderr, "%-30s%s\n","HASH_OPTION:", "cmtf");
+				fprintf(stderr, "%-30s%d\n","NUM_BUCKETS:", params->num_buckets);
 				break;
 			default:
 				fprintf(stderr, "%-30s%s\n","HASH_OPTION:", "rhht");
+				fprintf(stderr, "%-30s%d\n","INIT_CAPACITY:", params->init_capacity);
 				break;
 		}
 	}
@@ -63,7 +67,6 @@ void print_app_params(app_parameters* params)
 		fprintf(stderr, "%-30s%d\n","NUM_TOP_CAND:", params->l);
 		fprintf(stderr, "%-30s%d\n","SKETCH_WIDTH:", params->sketch_width);
 		fprintf(stderr, "%-30s%d\n","SKETCH_DEPTH:", params->sketch_depth);
-		fprintf(stderr, "%-30s%d\n","SKETCH_ROW_UPDATE:", params->sketch_rup);
 		fprintf(stderr, "%-30s%d\n","SKETCH_CAND_ONLY:", params->sketch_cand_only);
 	}
 	

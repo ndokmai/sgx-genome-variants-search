@@ -86,6 +86,8 @@ void csk_free()
 		}
 		free(m_csk->sketchf);
 	}
+
+	free(m_csk);
 }
 
 void csk_setsth(int new_threshold)

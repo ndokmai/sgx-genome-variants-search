@@ -7,13 +7,13 @@ PORT_NUMBER=7777
 #One of "basic", "sketch", "sketch_topk", "pca_sketch"
 APP_MODE=pca_sketch
 
-NUM_FILES=1000
+NUM_FILES=2000
 
-VCF_DIR=../test_data/bin/
+VCF_DIR=/home/ckockan/test-data/chr1_all_ckz0/
 
 CHUNK_SIZE=500000
 
-SNP_IDS=../test_data/unique_snps.bin
+SNP_IDS=/home/ckockan/data-sgx-misc/chr1_uniq.ckz0
 
 #======================================================================
 # Global options

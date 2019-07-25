@@ -26,6 +26,12 @@ void allocate_table(uint32_t capacity)
 	}
 }
 
+void deallocate_table()
+{
+	free(rhht_snp_table->buffer);
+	free(rhht_snp_table);
+}
+
 void allocate_table_pcc(uint32_t capacity, uint8_t num_pc)
 {
 	// Allocate memory for the top hash_table structure
@@ -49,6 +55,20 @@ void allocate_table_pcc(uint32_t capacity, uint8_t num_pc)
 		rhht_snp_table_pcc->buffer[i].sx = 0;
 		rhht_snp_table_pcc->buffer[i].pc_projections = NULL; // Allocate when used
 	}
+}
+
+void deallocate_table_pcc()
+{
+	uint32_t capacity = rhht_snp_table_pcc->capacity;
+	for(uint32_t i = 0; i < capacity; i++)
+	{
+		if(rhht_snp_table_pcc->buffer[i].pc_projections != NULL)
+		{
+			free(rhht_snp_table_pcc->buffer[i].pc_projections);
+		}
+	}
+	free(rhht_snp_table_pcc->buffer);
+	free(rhht_snp_table_pcc);
 }
 
 void construct(uint32_t index, uint32_t key, uint16_t case_count, uint16_t control_count)

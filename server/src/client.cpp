@@ -112,7 +112,7 @@ void run_thread_csk(int thread_num)
 	retval = system("rm _args_");
 }*/
 
-void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, char *ofn)
+void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, int capacity, char *ofn)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -126,7 +126,7 @@ void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 	start = std::clock();
 
 	// Make an ECALL to initialize the Enclave data structures
-	enclave_init_rhht(eid);
+	enclave_init_rhht(eid, capacity);
 
 	// Set app specific variables
 	uint32_t num_files = nf;
@@ -209,7 +209,7 @@ void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 	enclave_free_res_buf(eid);
 }
 
-void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, char *ofn)
+void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, int capacity, char *ofn)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -223,7 +223,7 @@ void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint3
 	start = std::clock();
 
 	// Make an ECALL to initialize the Enclave data structures
-	enclave_init_oa(eid);
+	enclave_init_oa(eid, capacity);
 
 	// Set app specific variables
 	uint32_t num_files = nf;
@@ -306,7 +306,7 @@ void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint3
 	enclave_free_res_buf(eid);
 }
 
-void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, char *ofn)
+void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, int nbuckets, char *ofn)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -320,7 +320,7 @@ void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 	start = std::clock();
 
 	// Make an ECALL to initialize the Enclave data structures
-	enclave_init_cmtf(eid);
+	enclave_init_cmtf(eid, nbuckets);
 
 	// Set app specific variables
 	uint32_t num_files = nf;
@@ -405,7 +405,7 @@ void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 }
 
 void app_csk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int l, char *ofn, \
-	int k, int w, int d, int rup)
+	int k, int w, int d)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -432,9 +432,7 @@ void app_csk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 	size_t i;
 	fprintf(stderr, "First Pass, updating CSK ...\n");
 	
-	// Row update is disabled
-	if(rup == 0)
-	{
+	
 		for(i = 0; i < num_files; i++)
 		{
 			fprintf(stderr, "First pass, processing file: %lu ...\n", (unsigned long) i);
@@ -474,50 +472,7 @@ void app_csk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 				delete[] ciphertext;
 			}
 		}
-	}
-	// Row update is enabled
-	else
-	{
-		for(i = 0; i < num_files; i++)
-		{
-			fprintf(stderr, "First pass, processing file: %lu ...\n", (unsigned long) i);
-
-			// First, receive the total number of elements to be received
-			uint8_t* num_elems_buf;
-			size_t len_num_elems;
-			msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
-			uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
-
-			// Now, receive and process next data chunk until all data is processed
-			uint32_t num_elems_rem = num_elems;
-			uint32_t num_elems_rcvd = 0;
-			while(num_elems_rcvd != num_elems)
-			{
-				size_t to_read_elems = 0;
-				if(num_elems_rem < csz)
-				{
-					to_read_elems = num_elems_rem;
-				}
-				else
-				{
-					to_read_elems = csz;
-				}
-		
-				// Receive data (encrypted)
-				uint8_t* ciphertext;
-				size_t ciphertext_len;
-				msgio->read_bin((void**) &ciphertext, &ciphertext_len);
-
-				// Make an ECALL to decrypt the data and process it inside the Enclave
-				enclave_decrypt_update_csk_row(eid, ra_ctx, ciphertext, ciphertext_len);
-				num_elems_rcvd = num_elems_rcvd +  to_read_elems;
-				num_elems_rem = num_elems_rem - to_read_elems;
-
-				// We've processed the secret data, now either clean it up or use data sealing for a second pass later
-				delete[] ciphertext;
-			}
-		}
-	}
+	
 
 	// Stop timer and report time for the first pass over the data
 	duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
@@ -655,7 +610,7 @@ void app_csk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 }
 
 void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int l, char *ofn, \
-	int k, int w, int d, int rup)
+	int k, int w, int d)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -682,9 +637,7 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 	size_t i;
 	fprintf(stderr, "First Pass, updating CMS ...\n");
 
-	 // Row update is disabled
-        if(rup == 0)
-        {
+	
 		for(i = 0; i < num_files; i++)
 		{
 			fprintf(stderr, "First Pass, processing file: %lu ...\n", (unsigned long) i);
@@ -725,52 +678,7 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 				delete[] ciphertext;
 			}
 		}
-	}
-	// Row update is enabled
-	else
-	{
-		for(i = 0; i < num_files; i++)
-		{
-			fprintf(stderr, "First Pass, processing file: %lu ...\n", (unsigned long) i);
-
-			// First, receive the total number of elements to be received
-			uint8_t* num_elems_buf;
-			size_t len_num_elems;
-			msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
-			uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
-
-			// Now, receive and process next data chunk until all data is processed
-			uint32_t num_elems_rem = num_elems;
-			uint32_t num_elems_rcvd = 0;
-			while(num_elems_rcvd != num_elems)
-			{
-				size_t to_read_elems = 0;
-				if(num_elems_rem < csz)
-				{
-					to_read_elems = num_elems_rem;
-				}
-				else
-				{
-					to_read_elems = csz;
-				}
-		
-				// Receive data (encrypted)
-				uint8_t* ciphertext;
-				size_t ciphertext_len;
-				msgio->read_bin((void**) &ciphertext, &ciphertext_len);
-
-				// Make an ECALL to decrypt the data and process it inside the Enclave
-				enclave_decrypt_update_cms_row(eid, ra_ctx, ciphertext, ciphertext_len);
-			
-				num_elems_rcvd = num_elems_rcvd +  to_read_elems;
-				num_elems_rem = num_elems_rem - to_read_elems;
-
-				// We've processed the secret data, now either clean it up or use data sealing for a second pass later
-				delete[] ciphertext;
-			}
-		}
-		enclave_normalize_cms_st_length(eid);
-	}
+	
 
 	// Stop timer and report time for the first pass over the data
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
@@ -1843,7 +1751,7 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 					}
 					(*params)->l = (1 << atoi(token));
 				}
-				else if(strcmp(var_name, "SKETCH_ROW_UPDATE") == 0)
+				/*else if(strcmp(var_name, "SKETCH_ROW_UPDATE") == 0)
 				{
 					if(strcmp((*params)->app_mode, "sketch") != 0)
 					{
@@ -1851,7 +1759,7 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 						exit(1);
 					}
 					(*params)->sketch_rup = atoi(token);
-				}
+				}*/
 				else if(strcmp(var_name, "SKETCH_CAND_ONLY") == 0)
 				{
 					if(strcmp((*params)->app_mode, "sketch") != 0)
@@ -1977,16 +1885,16 @@ int main(int argc, char** argv)
 			{
 				case 0:
 					app_oa(msgio, config, params->num_files, params->num_files_case, \
-						params->chunk_size, params->k, params->output_file);
+						params->chunk_size, params->k, params->init_capacity,  params->output_file);
 					break;
 				case 2:
 					app_cmtf(msgio, config, params->num_files, params->num_files_case, \
-						params->chunk_size, params->k, params->output_file);
+						params->chunk_size, params->k, params->num_buckets, params->output_file);
 					break;
 
 				default:
 					app_rhht(msgio, config, params->num_files, params->num_files_case, \
-						params->chunk_size, params->k, params->output_file);
+						params->chunk_size, params->k, params->init_capacity, params->output_file);
 					break;
 			}
 		}
@@ -1999,14 +1907,13 @@ int main(int argc, char** argv)
 					{
 						app_cms(msgio, config, params->num_files, params->num_files_case, \
 							params->chunk_size, params->l, params->output_file, \
-							0, params->sketch_width, params->sketch_depth, params->sketch_rup);
+							0, params->sketch_width, params->sketch_depth);
 					}
         				else
 					{
 						app_cms(msgio, config, params->num_files, params->num_files_case, \
 							params->chunk_size, params->l, params->output_file, \
-							params->k, params->sketch_width, params->sketch_depth, \
-							params->sketch_rup);
+							params->k, params->sketch_width, params->sketch_depth);
 					}
 					break;
 				default:
@@ -2014,14 +1921,13 @@ int main(int argc, char** argv)
 					{
 						app_csk(msgio, config, params->num_files, params->num_files_case, \
 							params->chunk_size, params->l, params->output_file, \
-							0, params->sketch_width, params->sketch_depth, params->sketch_rup);
+							0, params->sketch_width, params->sketch_depth);
 					}
         				else
 					{
 						app_csk(msgio, config, params->num_files, params->num_files_case, \
 							params->chunk_size, params->l, params->output_file, \
-							params->k, params->sketch_width, params->sketch_depth, \
-							params->sketch_rup);
+							params->k, params->sketch_width, params->sketch_depth);
 					}
 					break;
 			}
