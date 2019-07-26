@@ -822,7 +822,8 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 	}
 }
 
-/*void app_cms_mt(MsgIO* msgio, config_t& config)
+void app_cms_mt(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int l, char *ofn, \
+	int k, int w, int d)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -832,16 +833,14 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 	auto& ra_ctx = config.ra_ctx;
 
 	// Make an ECALL to initialize the Enclave CMS structure
-	enclave_init_cms(eid);
-
-	// Set the chunk size for receiving large amounts of data
-	uint32_t chunk_size = 500000;
+	enclave_init_cms(eid, w, d);
 
 	// Set app specific variables
-	uint32_t case_count = 2000;
-	uint32_t control_count = 2000;
-	uint32_t num_files = 2000;
-	//uint32_t num_files = 44000;
+	uint32_t num_files = nf;
+        uint32_t num_case_files = nf_case;
+        uint32_t num_control_files = nf - nf_case;
+        uint32_t case_count = (num_case_files << 1);
+        uint32_t control_count = (num_control_files << 1);
 
 	// Start timer
 	std::clock_t start;
@@ -851,6 +850,7 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 	// First Pass: Update the CMS structure
 	size_t i;
 	fprintf(stderr, "First Pass, updating CMS ...\n");
+
 	for(i = 0; i < num_files; i++)
 	{
 		//fprintf(stderr, "First Pass, processing file: %d ...\n", i);
@@ -867,13 +867,13 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 		while(num_elems_rcvd != num_elems)
 		{
 			size_t to_read_elems = 0;
-			if(num_elems_rem < chunk_size)
+			if(num_elems_rem < csz)
 			{
 				to_read_elems = num_elems_rem;
 			}
 			else
 			{
-				to_read_elems = chunk_size;
+				to_read_elems = csz;
 			}
 		
 			// Receive data (encrypted)
@@ -916,7 +916,7 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 	fprintf(stderr, "First Pass (CMS) took: %lf seconds\n", duration);
 
 	// Initialize the min-heap within the enclave
-	enclave_init_mh(eid);
+	enclave_init_mh(eid, l);
 
 	// Restart timer
 	start = std::clock();
@@ -936,13 +936,13 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 	while(num_elems_rcvd != num_elems)
 	{
 		size_t to_read_elems = 0;
-		if(num_elems_rem < chunk_size)
+		if(num_elems_rem < csz)
 		{
 			to_read_elems = num_elems_rem;
 		}
 		else
 		{
-			to_read_elems = chunk_size;
+			to_read_elems = csz;
 		}
 		
 		// Receive data (encrypted)
@@ -964,19 +964,98 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 	fprintf(stderr, "Second Pass (CMS) took: %lf seconds\n", duration);
 
 	// Make a final ECALL to receive the results and report results
-	/*
-	uint32_t* my_res;
-	my_res = (uint32_t*) malloc(sizeof(uint32_t) * (1 << 17));
-
-	enclave_get_res(eid, my_res);
-
-	for(size_t i = 0; i < (1 << 17); i++)
+	if(k <= 0)
 	{
-		fprintf(stdout, "rs%lu\n", (unsigned long) my_res[i]);
+		uint32_t top_ids[l];
+                uint16_t acdiff_vals[l];
+		//uint16_t test[10];
+		//enclave_get_test_buf(eid, test);
+                enclave_get_mh_ids(eid, top_ids, l);
+                enclave_get_mh_vals(eid, acdiff_vals, l);
+		/*for(int i = 0; i < 10; i++)
+                {
+                        fprintf(stderr, "%u\n", test[i]);
+                }*/
+
+                FILE* file = fopen(ofn, "w");
+                fprintf(file, "SNP_ID\tALLELE_CNT_DIFF_VAL\n");
+                for(int i = 0; i < l; i++)
+                {
+                        fprintf(file, "%u\t%u\n", top_ids[i], acdiff_vals[i]);
+                }
+                fclose(file);
+                duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
+                fprintf(stderr, "Second Pass (CMS) took: %lf seconds\n", duration);
+        }
+	else
+	{
+		duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
+		fprintf(stderr, "Second Pass (CSK) took: %lf seconds\n", duration);
+
+		start = std::clock();
+		fprintf(stderr, "Third pass, querying MH ...\n");
+		enclave_init_sketch_rhht(eid, l);
+		for(i = 0; i < num_files; i++)
+		{
+			fprintf(stderr, "Processing file: %lu ...\n", (unsigned long) i);
+
+			// First, receive the total number of elements to be received
+			uint8_t* num_elems_buf;
+			size_t len_num_elems;
+			msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
+			uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
+
+			// Now, receive and process next data chunk until all data is processed
+			uint32_t num_elems_rem = num_elems;
+			uint32_t num_elems_rcvd = 0;
+			while(num_elems_rcvd != num_elems)
+			{
+				size_t to_read_elems = 0;
+				if(num_elems_rem < csz)
+				{
+					to_read_elems = num_elems_rem;
+				}
+				else
+				{
+					to_read_elems = csz;
+				}
+
+				// Receive data (encrypted)
+				uint8_t* ciphertext;
+				size_t ciphertext_len;
+				msgio->read_bin((void**) &ciphertext, &ciphertext_len);
+
+				// Make an ECALL to decrypt the data and process it inside the Enclave
+				enclave_decrypt_process_sketch_rhht(eid, ra_ctx, ciphertext, ciphertext_len);
+				num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+				num_elems_rem = num_elems_rem - to_read_elems;
+
+				// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+				delete[] ciphertext;
+			}
+		}
+
+		// Make an ECALL to perform the chi-squared test
+		rhht_init_chi_sq(eid, case_count, control_count, k);
+
+		// Make an ECALL to receive the result
+		uint32_t top_ids[k];
+		float chi_sq_vals[k];
+		enclave_get_id_buf(eid, top_ids, k);
+		enclave_get_res_buf(eid, chi_sq_vals, k);
+		FILE* file = fopen(ofn, "w");
+		fprintf(file, "SNP_ID\tCHI_SQ_VAL\n");
+		for(int i = 0; i < k; i++)
+		{
+			fprintf(file, "%u\t%.4f\n", top_ids[i], chi_sq_vals[i]);
+		}
+		fclose(file);
+
+		// Stop timer and report time for the third pass over the data
+		duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
+		fprintf(stderr, "Third Pass (RHHT/MH) took: %lf seconds\n", duration);
 	}
-	free(my_res);
-	
-}*/
+}
 
 /*void app_cms_mt_ca(MsgIO* msgio, config_t& config)
 {
@@ -1874,11 +1953,13 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
+	fprintf(stderr, "Hello world\n");
 	MsgIO* msgio;
 	//parse(argv[0], NULL, config);
 
 	if(!remote_attestation(config, &msgio))
 	{
+		fprintf(stderr, "Hello world\n");
 		if(strcmp(params->app_mode, "basic") == 0)
 		{
 			switch(params->hash_option)
@@ -1905,13 +1986,13 @@ int main(int argc, char** argv)
 				case 0:
 					if(params->sketch_cand_only == 1)
 					{
-						app_cms(msgio, config, params->num_files, params->num_files_case, \
+						app_cms_mt(msgio, config, params->num_files, params->num_files_case, \
 							params->chunk_size, params->l, params->output_file, \
 							0, params->sketch_width, params->sketch_depth);
 					}
         				else
 					{
-						app_cms(msgio, config, params->num_files, params->num_files_case, \
+						app_cms_mt(msgio, config, params->num_files, params->num_files_case, \
 							params->chunk_size, params->l, params->output_file, \
 							params->k, params->sketch_width, params->sketch_depth);
 					}
