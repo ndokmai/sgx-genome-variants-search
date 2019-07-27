@@ -201,6 +201,11 @@ int AgentCurl::request(string const &url, string const &postdata,
 
 		if ( (slist= curl_slist_append(slist, "Expect:")) == NULL )
 			return 0;
+		//TODO: The code below is a quick-and-dirty fix. What needs to be done 
+		//      later is fixing the request function to take a custom header.
+		if ( (slist= curl_slist_append(slist, 
+					       "Content-Type: application/json")) == NULL )
+			return 0;
 
 		if ( curl_easy_setopt(curl, CURLOPT_HTTPHEADER, slist)
 			 != CURLE_OK ) return 0;
