@@ -30,7 +30,7 @@ float enclave_mcsk_buf[2001];
 float enclave_eig_buf[4000];
 float ortho_res[6];*/
 uint8_t *ptxt;
-uint8_t ptxt_len;
+uint32_t ptxt_len;
 uint32_t file_idx = 0;
 float *phenotypes;
 float *u;
@@ -249,14 +249,18 @@ sgx_status_t ecall_thread_cms(int thread_num)
 	int16_t count = ALLELE_HOMOZYGOUS * sign;
 	size_t i;
 	uint64_t rs_id_uint;
+
 	for(i = 2; i < num_het_start + 2; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
-		//cms_update_var(rs_id_uint, ALLELE_HOMOZYGOUS * sign);
+//		cms_update_var(rs_id_uint, ALLELE_HOMOZYGOUS * sign);
 
 		uint32_t hash;
 		uint32_t pos;
-		m_cms->st_length = m_cms->st_length + count;
+		if(thread_num == 0)
+		{
+			m_cms->st_length = m_cms->st_length + count;
+		}
 
 		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_cms->width_minus_one;
@@ -275,14 +279,18 @@ sgx_status_t ecall_thread_cms(int thread_num)
 	}
 
 	count = ALLELE_HETEROZYGOUS * sign;
+
 	for(i = num_het_start + 2; i < num_elems; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
-		//cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
+//		cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
 
 		uint32_t hash;
 		uint32_t pos;
-		m_cms->st_length = m_cms->st_length + count;
+		if(thread_num == 0)
+		{
+			m_cms->st_length = m_cms->st_length + count;
+		}
 
 		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_cms->width_minus_one;
@@ -329,7 +337,10 @@ sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num)
 
 		uint32_t hash;
 		uint32_t pos;
+		if(thread_num == 0)
+		{
 		m_cms->st_length = m_cms->st_length + count;
+		}
 
 		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_cms->width_minus_one;
@@ -359,7 +370,10 @@ sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num)
 
 		uint32_t hash;
 		uint32_t pos;
+		if(thread_num == 0)
+		{
 		m_cms->st_length = m_cms->st_length + count;
+		}
 
 		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
 		pos = hash & m_cms->width_minus_one;
@@ -668,7 +682,7 @@ void enclave_clear_cms(sgx_ra_context_t ctx)
 }
 
 //
-void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num)
+/*void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num)
 {
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = ptxt_len / 4;
@@ -738,7 +752,7 @@ void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num)
 
 		m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
 	}
-}
+}*/
 
 void enclave_decrypt_update_cms(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
 {

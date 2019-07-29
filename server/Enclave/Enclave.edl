@@ -13,10 +13,6 @@ enclave
 	{
 		include "config.h"
 
-		public sgx_status_t ecall_thread_cms(int thread_num);
-		public sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num);
-		public sgx_status_t ecall_thread_csk(int thread_num);
-
 		public sgx_status_t get_report([out] sgx_report_t* report, [in] sgx_target_info_t* target_info);
 
 		public size_t get_pse_manifest_size();
@@ -89,8 +85,11 @@ enclave
 
 		// Multi-threaded CMS public ECALL interface
 		public void enclave_decrypt_store_cms(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
-		public void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num);
+		//public void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num);
 		public void enclave_clear_cms(sgx_ra_context_t ctx);
+		public sgx_status_t ecall_thread_cms(int thread_num);
+		public sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num);
+		public sgx_status_t ecall_thread_csk(int thread_num);
 
 		// Count-Sketch public ECALL interface
 		public void enclave_init_csk(int CSK_WIDTH, int CSK_DEPTH);

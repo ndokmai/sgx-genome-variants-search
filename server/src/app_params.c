@@ -24,6 +24,7 @@ void init_app_params(app_parameters** params)
 	(*params)->sketch_cand_only = 0;
 	(*params)->num_pc = 2;
 	(*params)->eps = 0.12;
+	(*params)->num_threads = 1;
 }
 
 void print_app_params(app_parameters* params)

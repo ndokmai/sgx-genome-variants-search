@@ -86,7 +86,7 @@ void send_encrypted_vcf(MsgIO* msgio, uint32_t num_files, uint32_t chunk_size, i
 			{
 				fprintf(stderr, "Error opening file\n");
 			}
-			fprintf(stderr, "Filename: %s\n", filenames[index[i]]);
+			//fprintf(stderr, "Filename: %s\n", filenames[index[i]]);
 
 			// Move the file pointer to the end of the file
 			fseek(file, 0, SEEK_END);

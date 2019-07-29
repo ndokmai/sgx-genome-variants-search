@@ -24,7 +24,7 @@ SKETCH_DEPTH=8
 
 #SKETCH_ROW_UPDATE=0
 
-SKETCH_CAND_ONLY=0
+SKETCH_CAND_ONLY=1
 
 OUTPUT_FILE=../server/top_snps_cms_cand.txt
 

@@ -5,9 +5,9 @@
 	<!-- If TCSMaxNum == TCSNum == TCSMinPool, there is no dynamic thread -->
 	<!-- If TCSMaxNum is omitted, it defaults to TCSNum -->
 	<!-- This means currently 8 static threads are available for this configuration -->
-	<TCSMaxNum>4</TCSMaxNum>
-	<TCSNum>4</TCSNum>
-	<TCSMinPool>4</TCSMinPool>
+	<TCSMaxNum>8</TCSMaxNum>
+	<TCSNum>8</TCSNum>
+	<TCSMinPool>8</TCSMinPool>
 	<TCSPolicy>1</TCSPolicy>
 
 	<StackMaxSize>0x040000</StackMaxSize>
