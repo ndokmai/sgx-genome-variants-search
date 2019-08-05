@@ -25,10 +25,10 @@
 #define	PARTITION_SIZE		(1 << 20)
 
 // Global Enclave Buffers and Variables
-/* For testing the SVD correctness
-float enclave_mcsk_buf[2001];
+//For testing the SVD correctness
+//float enclave_mcsk_buf[2001];
 float enclave_eig_buf[4000];
-float ortho_res[6];*/
+//float ortho_res[6];
 uint8_t *ptxt;
 uint32_t ptxt_len;
 uint32_t file_idx = 0;
@@ -40,6 +40,7 @@ float *enc_res_buf = NULL;
 float *enc_temp_buf = NULL;
 int cms_st_length_inflation = 0;
 int MCSK_WIDTH = 0;
+int MCSK_DEPTH = 0;
 int MCSK_NUM_PC = 0;
 int test = 0;
 
@@ -121,100 +122,126 @@ void enclave_mcsk_mean_centering()
 void enclave_svd()
 {
 	MCSK_WIDTH = m_mcsk->m;
+	MCSK_DEPTH = m_mcsk->depth;
 	MCSK_NUM_PC = m_mcsk->k;
 	float** A = getmsk();
-	float** Q = (float**) malloc(MCSK_WIDTH * sizeof(float*));
-	float* S = (float*) malloc(MCSK_WIDTH * sizeof(float));
 	u = (float*) malloc(MCSK_WIDTH * sizeof(float));
 
-	for(size_t i = 0; i < MCSK_WIDTH; i++)
+	if (MCSK_WIDTH < MCSK_DEPTH) 
 	{
-		Q[i] = (float*) malloc(MCSK_WIDTH * sizeof(float));
-	}
-
-	// Compute SVD A = USV^T
-	// V stored in Q
-	int retval = svdcomp_t(A, 4096, MCSK_WIDTH, S, Q);
-
-	// DEBUG: Test whether rows of V are orthonormal
-//	orthonormal_test(Q, MCSK_WIDTH, ortho_res);
-
-	// Copy k rows of Q to A.
-	for (int i = 0; i < MCSK_NUM_PC; i++)
-	{
-		memcpy(A[i], Q[i], MCSK_WIDTH * sizeof(float));
-	}
-
-	// DEBUG: Get the first and second eigenvectors
-//	for(size_t  i = 0 ; i < 2000; i++)
-//	{
-//		enclave_eig_buf[i] = A[0][i];
-//	}
-//	for(size_t i = 2000; i < 4000; i++)
-//	{
-//		enclave_eig_buf[i] = A[1][i - 2000];
-//	}
-		
-	// Reset Q = I, u = all 1 vector
-	for (int i = 0; i < MCSK_WIDTH; i++)
-	{
-		Q[i][i] = 1.0;
-		u[i] = 1.0;
-		for (int j = i + 1; j < MCSK_WIDTH; j++)
+		float* S = (float*) malloc(MCSK_WIDTH * sizeof(float));
+		float** Q = (float**) malloc(MCSK_WIDTH * sizeof(float*));
+		for(size_t i = 0; i < MCSK_WIDTH; i++)
 		{
-			Q[i][j] = Q[j][i] = 0.0;
+			Q[i] = (float*) malloc(MCSK_WIDTH * sizeof(float));
 		}
-	}
 
-	// Compute matrix Q = I - VV^T
-	for (int pc = 0; pc < MCSK_NUM_PC; pc++)
-	{
+		// Compute SVD A = USV^T; V stored in Q
+		int retval = svdcomp_t(A, MCSK_DEPTH, MCSK_WIDTH, S, Q);
+
+		// DEBUG: Test whether rows of V are orthonormal
+		//	orthonormal_test(Q, MCSK_WIDTH, ortho_res);
+
+		// Copy k rows of Q to A.
+		for (int i = 0; i < MCSK_NUM_PC; i++)
+		{
+			memcpy(A[i], Q[i], MCSK_WIDTH * sizeof(float));
+		}
+
+		// DEBUG: Get the first and second eigenvectors
+		for(size_t i = 0; i < 2000; i++)
+		{
+			enclave_eig_buf[i] = S[i];
+		}
+		//for(size_t i = 2000; i < 4000; i++)
+		//{
+		//	enclave_eig_buf[i] = A[1][i - 2000];
+		//}
+		
+		// Reset Q = I, u = all 1 vector
 		for (int i = 0; i < MCSK_WIDTH; i++)
 		{
-			for (int j = 0; j < MCSK_WIDTH; j++)
+			Q[i][i] = 1.0;
+			u[i] = 1.0;
+			for (int j = i + 1; j < MCSK_WIDTH; j++)
 			{
-				Q[i][j] -= A[pc][i] * A[pc][j];
+				Q[i][j] = Q[j][i] = 0.0;
 			}
 		}
-	}
 
-	// Compute Q * phenotype vector
-	matrix_vector_mult(Q, phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH, MCSK_WIDTH);
-	memcpy(phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH * sizeof(float));
+		// Compute matrix Q = I - VV^T
+		for (int pc = 0; pc < MCSK_NUM_PC; pc++)
+		{
+			for (int i = 0; i < MCSK_WIDTH; i++)
+			{
+				for (int j = 0; j < MCSK_WIDTH; j++)
+				{
+					Q[i][j] -= A[pc][i] * A[pc][j];
+				}
+			}
+		}
 
-	// Reset Q = 0 to compute u = VV^Tu 
-	for (int i = 0; i < MCSK_WIDTH; i++)
-        {
-                for (int j = 0; j < MCSK_WIDTH; j++)
-                {
-                        Q[i][j] = 0.0;
-                }
-        }
-        for (int pc = 0; pc < MCSK_NUM_PC; pc++)
-        {
-                for (int i = 0; i < MCSK_WIDTH; i++)
-                {
-                        for (int j = 0; j < MCSK_WIDTH; j++)
-                        {
-                                Q[i][j] += A[pc][i] * A[pc][j];
-                        }
-                }
-        }
-	matrix_vector_mult(Q, u, A[MCSK_NUM_PC + 1], MCSK_WIDTH, MCSK_WIDTH);
-	memcpy(u, A[MCSK_NUM_PC + 1], MCSK_WIDTH * sizeof(float));
+		// Compute Q * phenotype vector
+		matrix_vector_mult(Q, phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH, MCSK_WIDTH);
+		memcpy(phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH * sizeof(float));
 
-//	for(size_t i = 0; i < 2000; i++)
-//	{
-//		enclave_mcsk_buf[i] = phenotypes[i];
-//	}
+		// Reset Q = 0 to compute u = VV^Tu 
+		for (int i = 0; i < MCSK_WIDTH; i++)
+       		{
+                	for (int j = 0; j < MCSK_WIDTH; j++)
+                	{
+                        	Q[i][j] = 0.0;
+                	}
+        	}
+        	for (int pc = 0; pc < MCSK_NUM_PC; pc++)
+        	{
+                	for (int i = 0; i < MCSK_WIDTH; i++)
+                	{
+                        	for (int j = 0; j < MCSK_WIDTH; j++)
+                        	{
+                                	Q[i][j] += A[pc][i] * A[pc][j];
+                        	}
+                	}
+        	}
+		matrix_vector_mult(Q, u, A[MCSK_NUM_PC + 1], MCSK_WIDTH, MCSK_WIDTH);
+		memcpy(u, A[MCSK_NUM_PC + 1], MCSK_WIDTH * sizeof(float));
+
+		//for(size_t i = 0; i < 2000; i++)
+		//{
+		//	enclave_mcsk_buf[i] = phenotypes[i];
+		//}
 	
-	// Free allocated memories
-	for (int i = 0; i < MCSK_WIDTH; i++)
-	{
-		free(Q[i]);
+		// Free allocated memories
+		for (int i = 0; i < MCSK_WIDTH; i++)
+		{
+			free(Q[i]);
+		}
+		free(Q);
+		free(S);
 	}
-	free(Q);
-	free(S);
+	else 
+	{
+		float* S = (float*) malloc(MCSK_DEPTH * sizeof(float));
+		float** Q = (float**) malloc(MCSK_DEPTH * sizeof(float*));
+		for(size_t i = 0; i < MCSK_DEPTH; i++)
+		{
+			Q[i] = (float*) malloc(MCSK_DEPTH * sizeof(float));
+		}
+
+		// Compute SVD A = USV^T; V stored in Q
+		int retval = svdcomp_a(A, MCSK_WIDTH, MCSK_DEPTH, S, Q);
+		memset(A[MCSK_NUM_PC], 0, MCSK_WIDTH * sizeof(float));
+		matrix_ortho_proj(A, phenotypes, A[MCSK_NUM_PC], MCSK_NUM_PC, MCSK_WIDTH);
+		for(size_t i = 0; i < MCSK_WIDTH; i++)
+		{
+			// Should be replaced by daxpy
+			A[MCSK_NUM_PC][i] = phenotypes[i] - A[MCSK_NUM_PC][i];
+			u[i] = 1.0;
+		}
+		memset(A[MCSK_NUM_PC + 1], 0, MCSK_WIDTH * sizeof(float));
+		matrix_ortho_proj(A, u, A[MCSK_NUM_PC + 1], MCSK_NUM_PC, MCSK_WIDTH);
+		free(S);
+	}
 
 	// Keep only the first k rows of V, now stroed in the first k rows of A
 	enclave_eig = (float**) malloc(MCSK_NUM_PC * sizeof(float*));
@@ -229,7 +256,7 @@ void enclave_svd()
 	free(m_mcsk);
 }
 
-sgx_status_t ecall_thread_cms(int thread_num)
+sgx_status_t ecall_thread_cms(int thread_num, int nrows_per_thread)
 {
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = ptxt_len / 4;
@@ -257,25 +284,31 @@ sgx_status_t ecall_thread_cms(int thread_num)
 
 		uint32_t hash;
 		uint32_t pos;
+		uint32_t row;
+
 		if(thread_num == 0)
 		{
 			m_cms->st_length = m_cms->st_length + count;
 		}
-
-		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
-		pos = hash & m_cms->width_minus_one;
-
-		if(m_cms->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
+		
+		for(int j = 0; j < nrows_per_thread; j++)
 		{
-			continue;
-		}
+			row = thread_num * nrows_per_thread + j;
+			hash = cal_hash(rs_id_uint, m_cms->seeds[row << 1], m_cms->seeds[(row << 1) + 1]);
+			pos = hash & m_cms->width_minus_one;
 
-		if(m_cms->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
-		{
-			continue;
-		}
+			if(m_cms->sketch[row][pos] >= HASH_MAX_16 && count > 0)
+			{
+				continue;
+			}
 
-		m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
+			if(m_cms->sketch[row][pos] <= HASH_MIN_16 && count < 0)
+			{
+				continue;
+			}
+
+			m_cms->sketch[row][pos] = m_cms->sketch[row][pos] + count;
+		}
 	}
 
 	count = ALLELE_HETEROZYGOUS * sign;
@@ -287,25 +320,31 @@ sgx_status_t ecall_thread_cms(int thread_num)
 
 		uint32_t hash;
 		uint32_t pos;
+		uint32_t row;
+
 		if(thread_num == 0)
 		{
 			m_cms->st_length = m_cms->st_length + count;
 		}
 
-		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
-		pos = hash & m_cms->width_minus_one;
-
-		if(m_cms->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
+		for(int j = 0; j < nrows_per_thread; j++)
 		{
-			continue;
-		}
+			row = thread_num * nrows_per_thread + j;
+			hash = cal_hash(rs_id_uint, m_cms->seeds[row << 1], m_cms->seeds[(row << 1) + 1]);
+			pos = hash & m_cms->width_minus_one;
 
-		if(m_cms->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
-		{
-			continue;
-		}
+			if(m_cms->sketch[row][pos] >= HASH_MAX_16 && count > 0)
+			{
+				continue;
+			}
 
-		m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
+			if(m_cms->sketch[row][pos] <= HASH_MIN_16 && count < 0)
+			{
+				continue;
+			}
+
+			m_cms->sketch[row][pos] = m_cms->sketch[row][pos] + count;
+		}
 	}
 	return SGX_SUCCESS;
 }
@@ -396,7 +435,7 @@ sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num)
 	return SGX_SUCCESS;
 }
 
-sgx_status_t ecall_thread_csk(int thread_num)
+sgx_status_t ecall_thread_csk(int thread_num, int nrows_per_thread)
 {
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = ptxt_len / 4;
@@ -423,24 +462,30 @@ sgx_status_t ecall_thread_csk(int thread_num)
 
 		uint32_t hash;
 		uint32_t pos;
+		uint32_t row;
 
-		hash = cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
-		pos = hash & m_csk->width_minus_one;
-
-		hash = cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
-		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
-
-		if(m_csk->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
+		for(int j = 0; j < nrows_per_thread; j++)
 		{
-			continue;
-		}
+			row = thread_num * nrows_per_thread + j;
+			hash = cal_hash(rs_id_uint, m_csk->seeds[row << 1], m_csk->seeds[(row << 1) + 1]);
+			pos = hash & m_csk->width_minus_one;
 
-		if(m_csk->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
-		{
-			continue;
-		}
+			hash = cal_hash(rs_id_uint, m_csk->seeds[(row + m_csk->depth) << 1], 
+					m_csk->seeds[((row + m_csk->depth) << 1) + 1]);
+			count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
 
-		m_csk->sketch[thread_num][pos] = m_csk->sketch[thread_num][pos] + count;
+			if(m_csk->sketch[row][pos] >= HASH_MAX_16 && count_ > 0)
+			{
+				continue;
+			}
+
+			if(m_csk->sketch[row][pos] <= HASH_MIN_16 && count_ < 0)
+			{
+				continue;
+			}
+
+			m_csk->sketch[row][pos] = m_csk->sketch[row][pos] + count_;
+		}
 	}
 
 	count = ALLELE_HETEROZYGOUS * sign;
@@ -450,24 +495,30 @@ sgx_status_t ecall_thread_csk(int thread_num)
 
 		uint32_t hash;
 		uint32_t pos;
+		uint32_t row;
 
-		hash = cal_hash(rs_id_uint, m_csk->seeds[thread_num << 1], m_csk->seeds[(thread_num << 1) + 1]);
-		pos = hash & m_csk->width_minus_one;
-
-		hash = cal_hash(rs_id_uint, m_csk->seeds[(thread_num + m_csk->depth) << 1], m_csk->seeds[((thread_num + m_csk->depth) << 1) + 1]);
-		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
-
-		if(m_csk->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
+		for(int j = 0; j < nrows_per_thread; j++)
 		{
-			continue;
-		}
+			row = thread_num * nrows_per_thread + j;
+			hash = cal_hash(rs_id_uint, m_csk->seeds[row << 1], m_csk->seeds[(row << 1) + 1]);
+			pos = hash & m_csk->width_minus_one;
 
-		if(m_csk->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
-		{
-			continue;
-		}
+			hash = cal_hash(rs_id_uint, m_csk->seeds[(row+ m_csk->depth) << 1], 
+					m_csk->seeds[((row + m_csk->depth) << 1) + 1]);
+			count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
 
-		m_csk->sketch[thread_num][pos] = m_csk->sketch[thread_num][pos] + count;
+			if(m_csk->sketch[row][pos] >= HASH_MAX_16 && count_ > 0)
+			{
+				continue;
+			}
+
+			if(m_csk->sketch[row][pos] <= HASH_MIN_16 && count_ < 0)
+			{
+				continue;
+			}
+
+			m_csk->sketch[row][pos] = m_csk->sketch[row][pos] + count_;
+		}
 	}
 
 	return SGX_SUCCESS;
@@ -2237,13 +2288,13 @@ void enclave_free_mh()
 	}
 }*/
 
-/*void enclave_get_eig_buf(float* my_res)
+void enclave_get_eig_buf(float* my_res)
 {
-	for(size_t i = 0; i < 4000; i++)
+	for(size_t i = 0; i < 2000; i++)
 	{
 		my_res[i] = enclave_eig_buf[i];
 	}
-}*/
+}
 
 /*void enclave_ortho(float* my_res)
 {

@@ -12,6 +12,8 @@ void init_app_params(app_parameters** params)
 	(*params)->output_file = NULL;
 	(*params)->num_files = 0;
 	(*params)->num_files_case = 0;
+	(*params)->num_cases = 0;
+	(*params)->num_controls = 0;
 	(*params)->chunk_size = 500000;
 	(*params)->k = 100;
 	(*params)->num_buckets = (1 << 21);
@@ -34,7 +36,7 @@ void print_app_params(app_parameters* params)
 	fprintf(stderr, "%-30s%u\n","NUM_FILES:", params->num_files);
 	fprintf(stderr, "%-30s%u\n","NUM_CASE_FILES:", params->num_files_case);
 	fprintf(stderr, "%-30s%u\n","CHUNK_SIZE:", params->chunk_size);
-	fprintf(stderr, "%-30s%d\n","NUM_TOP_SNPS:", params->chunk_size);
+	fprintf(stderr, "%-30s%d\n","NUM_TOP_SNPS:", params->k);
 	fprintf(stderr, "%-30s%s\n","OUTPUT_FILE:", params->output_file);
 	if(strcmp(params->app_mode, "basic") == 0)
 	{

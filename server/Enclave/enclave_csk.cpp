@@ -6,6 +6,19 @@
 
 struct csk* m_csk = NULL;
 
+static inline uint32_t calc_hash(uint64_t x, uint64_t a, uint64_t b)
+{
+	uint64_t result = a * x + b;
+	result = (result & 0x7FFFFFFF) + (result >> 31);
+
+	if(result >= 0x7FFFFFFF)
+	{
+		return (uint32_t) (result - 0x7FFFFFFF);
+	}
+
+	return (uint32_t) result;
+}
+
 void csk_init_param(uint32_t width, uint32_t depth)
 {
 	m_csk = (csk*) malloc(sizeof(csk));
@@ -103,10 +116,14 @@ void csk_update_var(uint64_t item, int16_t count)
 
 	for(size_t i = 0; i < m_csk->depth; i++)
 	{
-		hash = cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+		hash = calc_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
+//		hash = cal_hash(item, m_csk->seeds[i << 1], m_csk->seeds[(i << 1) + 1]);
 		pos = hash & m_csk->width_minus_one;
 
-		hash = cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
+		uint32_t temp = (i + m_csk->depth) << 1;
+		hash = calc_hash(item, m_csk->seeds[temp], m_csk->seeds[temp + 1]);
+//		hash = calc_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
+//		hash = cal_hash(item, m_csk->seeds[(i + m_csk->depth) << 1], m_csk->seeds[((i + m_csk->depth) << 1) + 1]);
 		count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
 
 		if(m_csk->sketch[i][pos] >= HASH_MAX_16 && count_ > 0)

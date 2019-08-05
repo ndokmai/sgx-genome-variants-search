@@ -21,6 +21,8 @@ typedef struct _params
 	int sketch_cand_only;
 	uint32_t num_files;
 	uint32_t num_files_case;
+	uint32_t num_cases;
+	uint32_t num_controls;
 	uint32_t chunk_size;
 	int k;
 	int l;

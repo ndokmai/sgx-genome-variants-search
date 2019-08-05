@@ -78,11 +78,21 @@ void mcsk_setk(uint32_t num_pc)
 void mcsk_free() 
 {
 	for (size_t i = 0; i < m_mcsk->depth; i++)
-		free(m_mcsk->msketchf[i]);
-	free(m_mcsk->msketchf);
+	{
+		if (m_mcsk->msketchf[i] != NULL)
+		{
+			free(m_mcsk->msketchf[i]);
+		}
+	}
+	if (m_mcsk->msketchf != NULL)
+	{
+		free(m_mcsk->msketchf);
+	}
 
 	if (m_mcsk->seeds != NULL)
+	{
 		free(m_mcsk->seeds);
+	}
 }
 
 void mcsk_update_var(uint64_t item, uint32_t col, float count) 

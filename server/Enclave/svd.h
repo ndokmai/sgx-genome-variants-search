@@ -24,5 +24,6 @@ double pythag(double, double);
 /* Compute SVD of a. */
 int svdcomp(float**, int, int, float*, float**);
 int svdcomp_t(float**, int, int, float*, float**);
+int svdcomp_a(float**, int, int, float*, float**);
 
 #endif

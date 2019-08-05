@@ -73,6 +73,21 @@ void matrix_vector_mult(float **mat, float *vec, float *result, int rows, int co
 		result[i] = dot_prod(mat[i], vec, cols);
 }
 
+void matrix_ortho_proj(float **omat, float *vec, float *result, int k, int m) { 
+	/* In matrix form: result = omat^T * omat * vec. */
+	//memset(result, 0, m * sizeof(float));
+	for (int i = 0; i < m; i++)
+	{
+		for (int j = 0; j < m; j++)
+		{
+			for (int l = 0; l < k; l++)
+			{
+				result[i] += omat[l][j] * omat[l][i] * vec[j];
+			}
+		}
+	}
+}
+
 void orthonormal_test(float **V, size_t size, float* res)
 {
 	/* Test whether the row vectors are orthogonal. */

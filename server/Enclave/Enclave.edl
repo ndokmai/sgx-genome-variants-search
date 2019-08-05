@@ -34,7 +34,7 @@ enclave
 		//public void enclave_get_res_buf([out, size = 4000] uint32_t* res);
 		//public void enclave_get_mcsk_res([out, size = 8004] float* my_res);
 		//public void enclave_get_mcsk_sigma([out, size = 8000] float* my_res);
-		//public void enclave_get_eig_buf([out, size = 16000] float* my_res);
+		public void enclave_get_eig_buf([out, size = 8000] float* my_res);
 		//public void enclave_ortho([out, size = 24] float* my_res);
 		//public void mcsk_pull_row();
 		//public void enclave_get_mem_used([out, size = 4] uint32_t* mem_usage);
@@ -87,9 +87,9 @@ enclave
 		public void enclave_decrypt_store_cms(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 		//public void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num);
 		public void enclave_clear_cms(sgx_ra_context_t ctx);
-		public sgx_status_t ecall_thread_cms(int thread_num);
+		public sgx_status_t ecall_thread_cms(int thread_num, int nrows_per_thread);
 		public sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num);
-		public sgx_status_t ecall_thread_csk(int thread_num);
+		public sgx_status_t ecall_thread_csk(int thread_num, int nrows_per_thread);
 
 		// Count-Sketch public ECALL interface
 		public void enclave_init_csk(int CSK_WIDTH, int CSK_DEPTH);
