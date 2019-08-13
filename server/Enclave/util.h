@@ -30,5 +30,6 @@ void matrix_vector_mult(float **mat, float *vec, float *result, int rows, int co
 void matrix_ortho_proj(float **omat, float *vec, float *result, int k, int m);
 
 void orthonormal_test(float** V, size_t size, float* res);
+void orthonormal_test_t(float** V, size_t size, float* res);
 
 #endif

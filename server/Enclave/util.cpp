@@ -110,3 +110,27 @@ void orthonormal_test(float **V, size_t size, float* res)
 	res[4] = norm2;
 	res[5] = norm3;
 }
+
+void orthonormal_test_t(float **V, size_t size, float* res)
+{
+	/* Test whether the row vectors are orthogonal. */
+	float dot12 = 0.0, dot13 = 0.0, dot23 = 0.0;
+	float norm1 = 0.0, norm2 = 0.0, norm3 = 0.0;
+	for (size_t i = 0; i < size; i++) {
+		dot12 += V[0][i] * V[1][i];
+		dot13 += V[0][i] * V[2][i];
+		dot23 += V[1][i] * V[2][i];
+		norm1 += V[0][i] * V[0][i];
+		norm2 += V[1][i] * V[1][i];
+		norm3 += V[2][i] * V[2][i];
+	}
+//	printf("%.4f\t%.4f\t%.4f\n", dot12, dot13, dot23);
+//	printf("%.4f\t%.4f\t%.4f\n", norm1, norm2, norm3);
+	res[0] = dot12;
+	res[1] = dot13;
+	res[2] = dot23;
+	res[3] = norm1;
+	res[4] = norm2;
+	res[5] = norm3;
+}
+

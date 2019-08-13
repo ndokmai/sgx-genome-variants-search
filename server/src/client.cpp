@@ -75,7 +75,8 @@ void run_thread_csk(int thread_num, int nrpt)
 	ecall_thread_csk(global_eid, &ret, thread_num, nrpt);
 }
 
-void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, int capacity, char *ofn)
+void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, \
+	int capacity, char *ofn, bool debug_flag)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -101,7 +102,10 @@ void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 	size_t i;
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %lu ...\n", (unsigned long) i);
+		if(debug_flag)
+		{
+			fprintf(stderr, "Processing file: %lu ...\n", (unsigned long) i);
+		}
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -172,7 +176,8 @@ void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 	enclave_free_res_buf(eid);
 }
 
-void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, int capacity, char *ofn)
+void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, \
+	int capacity, char *ofn, bool debug_flag)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -198,7 +203,10 @@ void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint3
 	size_t i;
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %lu ...\n", (unsigned long) i);
+		if(debug_flag)
+		{
+			fprintf(stderr, "Processing file: %lu ...\n", (unsigned long) i);
+		}
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -269,7 +277,8 @@ void app_oa(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint3
 	enclave_free_res_buf(eid);
 }
 
-void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, int nbuckets, char *ofn)
+void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, \
+	int nbuckets, char *ofn, bool debug_flag)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -295,7 +304,10 @@ void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 	size_t i;
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %lu ...\n", (unsigned long) i);
+		if(debug_flag)
+		{
+			fprintf(stderr, "Processing file: %lu ...\n", (unsigned long) i);
+		}
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -963,8 +975,8 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 	}
 }
 
-void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t ncase, \
-	uint32_t ncontrol, uint32_t csz, int l, char *ofn, int k, int w, int d, int num_pc, float eps)
+void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, \
+	uint32_t csz, int l, char *ofn, int k, int w, int d, int num_pc, float eps, bool debug_flag)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -979,8 +991,8 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case,
 	uint32_t num_files = nf;
         uint32_t num_case_files = nf_case;
         uint32_t num_control_files = nf - nf_case;
-        uint32_t case_count = (ncase << 1);
-	uint32_t control_count = (ncontrol << 1);
+        uint32_t case_count = (num_case_files << 1);
+	uint32_t control_count = (num_control_files << 1);
 
 	// Start timer
 	std::clock_t start;
@@ -992,7 +1004,10 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case,
 	fprintf(stderr, "First Pass, updating MCSK ...\n");
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "First pass, processing file: %lu ...\n", i);
+		if(debug_flag)
+		{
+			fprintf(stderr, "First pass, processing file: %lu ...\n", i);
+		}
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -1043,40 +1058,8 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case,
 	// Perform mean centering before SVD
 	enclave_mcsk_mean_centering(eid);
 
-	// DEBUG
-	/*mcsk_pull_row(eid);
-	float my_res[2001];
-	enclave_get_mcsk_res(eid, my_res);
-	for(int i = 0; i < 2001; i++)
-	{
-		fprintf(stderr, "%f\n", my_res[i]);
-	}*/
-
 	// SVD
 	enclave_svd(eid);
-
-	// DEBUG
-	float my_eig_res[2000];
-	enclave_get_eig_buf(eid, my_eig_res);
-	for(int i = 0; i < 2000; i++)
-	{
-		fprintf(stderr, "%f\n", my_eig_res[i]);
-	}
-
-//	float my_ortho_res[6];
-//	enclave_ortho(eid, my_ortho_res);
-//	for(int i = 0; i < 6; i++)
-//	{
-//		fprintf(stderr, "%f\n", my_ortho_res[i]);
-//	}
-
-	// DEBUG
-//	float my_res[2000];
-//	enclave_get_mcsk_sigma(eid, my_res);
-//	for(int i = 0; i < 2000; i++)
-//	{
-//		fprintf(stderr, "%f\n", my_res[i]);
-//	}
 
 	// Stop timer and report time for the first pass over the data
 	duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
@@ -1092,7 +1075,10 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case,
 	fprintf(stderr, "Second Pass, updating CSK ...\n");
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Second pass, processing file: %lu ...\n", i);
+		if(debug_flag)
+		{
+			fprintf(stderr, "Second pass, processing file: %lu ...\n", i);
+		}
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -1185,22 +1171,15 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case,
 	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
 	fprintf(stderr, "Third Pass (CSK) took: %lf seconds\n", duration);
 
-	// DEBUG
-//	uint32_t my_ids[1000];
-//	float my_counts[1000];
-//	enclave_get_id_buf(eid, my_ids);
-//	enclave_get_countf_buf(eid, my_counts);
-//	for(int i = 0; i < 1000; i++)
-//	{
-//		fprintf(stderr, "%lu\t%f\n", (unsigned long) my_ids[i], my_counts[i]);
-//	}
-
 	// Last Pass: Use rhht and mh for pcc
 	fprintf(stderr, "Last pass, C-A Trend Test ...\n");
 	enclave_init_rhht_pcc(eid, l);
 	for(i = 0; i < num_files; i++)
 	{
-		fprintf(stderr, "Processing file: %lu ...\n", i);
+		if (debug_flag)
+		{
+			fprintf(stderr, "Processing file: %lu ...\n", i);
+		}
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -1238,27 +1217,30 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case,
 		}
 	}
 	
-
 	// Make an ECALL to perform the chi-squared test
+	enclave_init_id_buf(eid, k);
+	enclave_init_res_buf(eid, k);
 	rhht_init_cat_chi_sq(eid, num_files, k);
-	//abort();
 
 	// Make an ECALL to receive the result
-	uint32_t top_ids[k];
-	float chi_sq_vals[k];
-	enclave_get_id_buf(eid, top_ids, k);
-	enclave_get_res_buf(eid, chi_sq_vals, k);
+	res_pair *chi_sq_pairs;
+	chi_sq_pairs = (res_pair*) malloc(k * sizeof(res_pair));
+	enclave_get_res_pairs(eid, chi_sq_pairs, k);
+	qsort(chi_sq_pairs, k, sizeof(res_pair), cmpfunc_pair);
 	FILE* file = fopen(ofn, "w");
-	fprintf(file, "SNP_ID\tTREND_CHI_SQ_VAL\n");
+	fprintf(file, "SNP_ID\tCHI_SQ_VAL\n");
 	for(int i = 0; i < k; i++)
 	{
-		fprintf(file, "%u\t%.4f\n", top_ids[i], chi_sq_vals[i]);
+		fprintf(file, "%u\t%.4f\n", chi_sq_pairs[i].key, chi_sq_pairs[i].value);
 	}
 	fclose(file);
 
 	// Stop timer and report time for the last pass over the data
 	duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
 	fprintf(stderr, "Last Pass (C-A Trend Test) took: %lf seconds\n", duration);
+	free(chi_sq_pairs);
+	enclave_free_id_buf(eid);
+	enclave_free_res_buf(eid);
 }
 
 void new_parse(char* param_path, app_parameters** params, config_t& config)
@@ -1569,16 +1551,16 @@ int main(int argc, char** argv)
 			{
 				case 0:
 					app_oa(msgio, config, params->num_files, params->num_files_case, \
-						params->chunk_size, params->k, params->init_capacity,  params->output_file);
+						params->chunk_size, params->k, params->init_capacity, params->output_file, false);
 					break;
 				case 2:
 					app_cmtf(msgio, config, params->num_files, params->num_files_case, \
-						params->chunk_size, params->k, params->num_buckets, params->output_file);
+						params->chunk_size, params->k, params->num_buckets, params->output_file, false);
 					break;
 
 				default:
 					app_rhht(msgio, config, params->num_files, params->num_files_case, \
-						params->chunk_size, params->k, params->init_capacity, params->output_file);
+						params->chunk_size, params->k, params->init_capacity, params->output_file, false);
 					break;
 			}
 		}
@@ -1619,15 +1601,15 @@ int main(int argc, char** argv)
 		else if(strcmp(params->app_mode, "pca_sketch") == 0)
 		{
 			float epsilon = params->eps * params->eps;
-			if(params->num_pc / epsilon > 8192)
+			if(params->num_pc / epsilon > 16000)
 			{
 				fprintf(stderr, "Temporarily not supporting this range of parameters.\n");
 				exit(1);
 			}
-			app_svd_mcsk(msgio, config, params->num_files, params->num_files_case, 2000, 2000, \
+			app_svd_mcsk(msgio, config, params->num_files, params->num_files_case, \
 					params->chunk_size, params->l, params->output_file, \
 					params->k, params->sketch_width, params->sketch_depth, \
-					params->num_pc, params->eps);
+					params->num_pc, params->eps, false);
 		}
 
 		finalize(msgio, config);

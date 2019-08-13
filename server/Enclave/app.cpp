@@ -27,7 +27,7 @@
 // Global Enclave Buffers and Variables
 //For testing the SVD correctness
 //float enclave_mcsk_buf[2001];
-float enclave_eig_buf[4000];
+float enclave_eig_buf[8000];
 //float ortho_res[6];
 uint8_t *ptxt;
 uint32_t ptxt_len;
@@ -42,7 +42,7 @@ int cms_st_length_inflation = 0;
 int MCSK_WIDTH = 0;
 int MCSK_DEPTH = 0;
 int MCSK_NUM_PC = 0;
-int test = 0;
+//int test = 0;
 
 void enclave_reset_file_idx()
 {
@@ -139,78 +139,26 @@ void enclave_svd()
 		// Compute SVD A = USV^T; V stored in Q
 		int retval = svdcomp_t(A, MCSK_DEPTH, MCSK_WIDTH, S, Q);
 
-		// DEBUG: Test whether rows of V are orthonormal
-		//	orthonormal_test(Q, MCSK_WIDTH, ortho_res);
-
 		// Copy k rows of Q to A.
 		for (int i = 0; i < MCSK_NUM_PC; i++)
 		{
 			memcpy(A[i], Q[i], MCSK_WIDTH * sizeof(float));
 		}
-
-		// DEBUG: Get the first and second eigenvectors
-		for(size_t i = 0; i < 2000; i++)
-		{
-			enclave_eig_buf[i] = S[i];
-		}
-		//for(size_t i = 2000; i < 4000; i++)
-		//{
-		//	enclave_eig_buf[i] = A[1][i - 2000];
-		//}
 		
-		// Reset Q = I, u = all 1 vector
-		for (int i = 0; i < MCSK_WIDTH; i++)
+		// Compute VV^T * phenotype vector and VV^T * all one vector
+		memset(A[MCSK_NUM_PC], 0, MCSK_WIDTH * sizeof(float));
+		matrix_ortho_proj(A, phenotypes, A[MCSK_NUM_PC], MCSK_NUM_PC, MCSK_WIDTH);
+		for(size_t i = 0; i < MCSK_WIDTH; i++)
 		{
-			Q[i][i] = 1.0;
+			// Should be replaced by daxpy
+			A[MCSK_NUM_PC][i] = phenotypes[i] - A[MCSK_NUM_PC][i];
 			u[i] = 1.0;
-			for (int j = i + 1; j < MCSK_WIDTH; j++)
-			{
-				Q[i][j] = Q[j][i] = 0.0;
-			}
 		}
-
-		// Compute matrix Q = I - VV^T
-		for (int pc = 0; pc < MCSK_NUM_PC; pc++)
-		{
-			for (int i = 0; i < MCSK_WIDTH; i++)
-			{
-				for (int j = 0; j < MCSK_WIDTH; j++)
-				{
-					Q[i][j] -= A[pc][i] * A[pc][j];
-				}
-			}
-		}
-
-		// Compute Q * phenotype vector
-		matrix_vector_mult(Q, phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH, MCSK_WIDTH);
 		memcpy(phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH * sizeof(float));
-
-		// Reset Q = 0 to compute u = VV^Tu 
-		for (int i = 0; i < MCSK_WIDTH; i++)
-       		{
-                	for (int j = 0; j < MCSK_WIDTH; j++)
-                	{
-                        	Q[i][j] = 0.0;
-                	}
-        	}
-        	for (int pc = 0; pc < MCSK_NUM_PC; pc++)
-        	{
-                	for (int i = 0; i < MCSK_WIDTH; i++)
-                	{
-                        	for (int j = 0; j < MCSK_WIDTH; j++)
-                        	{
-                                	Q[i][j] += A[pc][i] * A[pc][j];
-                        	}
-                	}
-        	}
-		matrix_vector_mult(Q, u, A[MCSK_NUM_PC + 1], MCSK_WIDTH, MCSK_WIDTH);
+		memset(A[MCSK_NUM_PC + 1], 0, MCSK_WIDTH * sizeof(float));
+		matrix_ortho_proj(A, u, A[MCSK_NUM_PC + 1], MCSK_NUM_PC, MCSK_WIDTH);
 		memcpy(u, A[MCSK_NUM_PC + 1], MCSK_WIDTH * sizeof(float));
-
-		//for(size_t i = 0; i < 2000; i++)
-		//{
-		//	enclave_mcsk_buf[i] = phenotypes[i];
-		//}
-	
+		
 		// Free allocated memories
 		for (int i = 0; i < MCSK_WIDTH; i++)
 		{
@@ -230,6 +178,8 @@ void enclave_svd()
 
 		// Compute SVD A = USV^T; V stored in Q
 		int retval = svdcomp_a(A, MCSK_WIDTH, MCSK_DEPTH, S, Q);
+
+		// Compute VV^T * phenotype vector and VV^T * all one vector
 		memset(A[MCSK_NUM_PC], 0, MCSK_WIDTH * sizeof(float));
 		matrix_ortho_proj(A, phenotypes, A[MCSK_NUM_PC], MCSK_NUM_PC, MCSK_WIDTH);
 		for(size_t i = 0; i < MCSK_WIDTH; i++)
@@ -238,8 +188,17 @@ void enclave_svd()
 			A[MCSK_NUM_PC][i] = phenotypes[i] - A[MCSK_NUM_PC][i];
 			u[i] = 1.0;
 		}
+		memcpy(phenotypes, A[MCSK_NUM_PC], MCSK_WIDTH * sizeof(float));
 		memset(A[MCSK_NUM_PC + 1], 0, MCSK_WIDTH * sizeof(float));
 		matrix_ortho_proj(A, u, A[MCSK_NUM_PC + 1], MCSK_NUM_PC, MCSK_WIDTH);
+		memcpy(u, A[MCSK_NUM_PC + 1], MCSK_WIDTH * sizeof(float));
+
+		// Free allocated memories
+		for (int i = 0; i < MCSK_DEPTH; i++)
+		{
+			free(Q[i]);
+		}
+		free(Q);
 		free(S);
 	}
 
@@ -2040,7 +1999,7 @@ float cat_chi_sq(uint16_t ssqg, uint16_t total, float dotprod, float sx, float s
 	}
 	chi_sq_val = total * dotprod - sx * sy;
 	chi_sq_val = (chi_sq_val * chi_sq_val) * total / ((total * sx2 - sx * sx) * (total * sy2 - sy * sy));
-	if(isnan(chi_sq_val) && test == 0)
+	/*if(isnan(chi_sq_val) && test == 0)
 	{
 		enc_temp_buf[0] = ssqg;
 		enc_temp_buf[1] = total;
@@ -2051,7 +2010,7 @@ float cat_chi_sq(uint16_t ssqg, uint16_t total, float dotprod, float sx, float s
 		enc_temp_buf[6] = pc_projections[0];
 		enc_temp_buf[7] = pc_projections[1];
 		test = 1;
-	}
+	}*/
 	return chi_sq_val;
 }
 
@@ -2290,7 +2249,7 @@ void enclave_free_mh()
 
 void enclave_get_eig_buf(float* my_res)
 {
-	for(size_t i = 0; i < 2000; i++)
+	for(size_t i = 0; i < 8000; i++)
 	{
 		my_res[i] = enclave_eig_buf[i];
 	}
