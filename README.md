@@ -24,10 +24,13 @@ The project is divided into three logical parts under their respective directori
 
 * Simply run the command ```make``` in each of the main directories to compile the binaries.
 
-* IMPORTANT NOTE: Since there are some hardcoded paths within the Makefile(s), especially for the server, it might be necessary to
-modify these to point to the correct locations of the libraries.
-
 * If you get any errors during compilation, it is quite likely due to a missing/incorrect Intel SGX installation or the related libraries. Please carefully (re)-follow the instructions provided in the "Intel® Software Guard Extensions (SGX) Remote Attestation End-to-End Sample" README below before proceeding.
+
+###### Compiling binaries in simulation mode and changing library paths
+
+* By default, binaries are compiled in "Hardware" mode. If you don't have access to hardware that supports SGX, you can compile binaries in "Simulation" mode. To achieve this, run the command ```make SGX_MODE=SIM```.
+
+* Additional arguments can be passed to ```make``` to override the default library paths. If no arguments are specified, the command defaults to ```make SGX_MODE=HW SGX_SDK=/opt/intel/sgxsdk OpenSSL_Path=/opt/openssl/1.1.0i SGX_SSL_Dir=/opt/intel/sgxssl``` for the server and ```make SGXSDK_DIR=/opt/intel/sgxsdk OPENSSL_DIR=/opt/openssl/1.1.0i``` for the service provider.
 
 ##### Input
 * The iDASH2017 dataset (chr1) is available at http://www.humangenomeprivacy.org/2017/competition-tasks.html (Task 2: Software Guard Extension (SGX) based whole genome variants search), with up to 1000 VCF files for "case" and 1000 VCF files for "control" groups. If the above link requires a password, you may want to try this one instead http://darwin.informatics.indiana.edu/diybu/individualVcf.tar.gz.
