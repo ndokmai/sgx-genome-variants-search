@@ -88,8 +88,9 @@ enclave
 		//public void enclave_update_cms(sgx_ra_context_t ctx, uint32_t thread_num);
 		public void enclave_clear_cms(sgx_ra_context_t ctx);
 		public sgx_status_t ecall_thread_cms(int thread_num, int nrows_per_thread);
-		public sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num);
+		public sgx_status_t ecall_thread_cms_ca(int thread_num, int nrows_per_thread, int part_num);
 		public sgx_status_t ecall_thread_csk(int thread_num, int nrows_per_thread);
+		public sgx_status_t ecall_thread_csk_ca(int thread_num, int nrows_per_thread, int part_num);
 
 		// Count-Sketch public ECALL interface
 		public void enclave_init_csk(int CSK_WIDTH, int CSK_DEPTH);

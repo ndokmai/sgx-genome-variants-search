@@ -39,7 +39,7 @@ endif
 
 CXX := g++
 Urts_Library_Name := sgx_urts
-OpenSSL_Path := /opt/openssl/1.1.0i
+OpenSSL_Path ?= /opt/openssl/1.1.0i
 App_C_Files := $(wildcard src/*.cpp) $(wildcard src/*.c)
 App_Include_Paths :=-I$(SGX_SDK)/include -I$(OpenSSL_Path)/include -Iinclude -IEnclave  -I. 
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -g
@@ -69,7 +69,7 @@ App_Name := app
 
 ######## Enclave Settings ########
 
-SGX_SSL_Dir = /opt/intel/sgxssl
+SGX_SSL_Dir ?= /opt/intel/sgxssl
 OPENSSL_LIBRARY_PATH = $(SGX_SSL_Dir)/lib64
 Trts_Library_Name := sgx_trts
 Service_Library_Name := sgx_tservice

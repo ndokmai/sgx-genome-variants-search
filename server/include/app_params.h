@@ -29,6 +29,8 @@ typedef struct _params
 	int num_pc;
 	float eps;
 	int num_threads;
+	int cache;
+	int debug;
 } app_parameters;
 
 void init_app_params(app_parameters**);

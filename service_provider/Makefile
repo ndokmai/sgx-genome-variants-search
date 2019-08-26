@@ -1,8 +1,8 @@
 MAKEFILE_DIR:=$(abspath $(lastword $(MAKEFILE_LIST))/..)
 BASE_DIR:=$(abspath $(MAKEFILE_DIR))
-SGXSDK_DIR:=/opt/intel/sgxsdk
+SGXSDK_DIR?=/opt/intel/sgxsdk
 HTTPPARSER_DIR:=$(BASE_DIR)/httpparser
-OPENSSL_DIR:=/opt/openssl/1.1.0i
+OPENSSL_DIR?=/opt/openssl/1.1.0i
 
 CXX=g++-7
 

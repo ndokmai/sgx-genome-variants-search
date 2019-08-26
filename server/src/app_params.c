@@ -27,6 +27,8 @@ void init_app_params(app_parameters** params)
 	(*params)->num_pc = 2;
 	(*params)->eps = 0.12;
 	(*params)->num_threads = 1;
+	(*params)->cache = 0;
+	(*params)->debug = 0;
 }
 
 void print_app_params(app_parameters* params)
@@ -38,6 +40,7 @@ void print_app_params(app_parameters* params)
 	fprintf(stderr, "%-30s%u\n","CHUNK_SIZE:", params->chunk_size);
 	fprintf(stderr, "%-30s%d\n","NUM_TOP_SNPS:", params->k);
 	fprintf(stderr, "%-30s%s\n","OUTPUT_FILE:", params->output_file);
+	fprintf(stderr, "%-30s%d\n","DEBUG:", params->debug);
 	if(strcmp(params->app_mode, "basic") == 0)
 	{
 		switch(params->hash_option)
@@ -71,6 +74,11 @@ void print_app_params(app_parameters* params)
 		fprintf(stderr, "%-30s%d\n","SKETCH_WIDTH:", params->sketch_width);
 		fprintf(stderr, "%-30s%d\n","SKETCH_DEPTH:", params->sketch_depth);
 		fprintf(stderr, "%-30s%d\n","SKETCH_CAND_ONLY:", params->sketch_cand_only);
+		fprintf(stderr, "%-30s%d\n","NUM_THREADS:", params->num_threads);
 	}
-	
+	if(strcmp(params->app_mode, "") == 0)
+	{
+		fprintf(stderr, "%-30s%d\n","NUM_PC:", params->num_pc);
+		fprintf(stderr, "%-30s%.3f\n","EPS:", params->eps);
+	}
 }

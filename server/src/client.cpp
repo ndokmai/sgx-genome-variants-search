@@ -57,22 +57,26 @@ int cmpfunc_pair(const void *a, const void *b)
 
 void run_thread_cms(int thread_num, int nrpt)
 {
-	//fprintf(stderr, "Thread num is: %d\n", thread_num);
 	sgx_status_t ret;
 	ecall_thread_cms(global_eid, &ret, thread_num, nrpt);
 }
 
-void run_thread_cms_ca(int thread_num, int part_num)
+void run_thread_cms_ca(int thread_num, int nrpt, int part_num)
 {
 	sgx_status_t ret;
-	ecall_thread_cms_ca(global_eid, &ret, thread_num, part_num);
+	ecall_thread_cms_ca(global_eid, &ret, thread_num, nrpt, part_num);
 }
 
 void run_thread_csk(int thread_num, int nrpt)
 {
-	//fprintf(stderr, "Thread num is: %d\n", thread_num);
 	sgx_status_t ret;
 	ecall_thread_csk(global_eid, &ret, thread_num, nrpt);
+}
+
+void run_thread_csk_ca(int thread_num, int nrpt, int part_num)
+{
+	sgx_status_t ret;
+	ecall_thread_csk_ca(global_eid, &ret, thread_num, nrpt, part_num);
 }
 
 void app_rhht(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t csz, int k, \
@@ -380,7 +384,7 @@ void app_cmtf(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uin
 }
 
 void app_csk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t ncase, uint32_t ncontrol, \
-	uint32_t csz, int l, char *ofn, int k, int w, int d, int nt, bool debug_flag)
+	uint32_t csz, int l, char *ofn, int k, int w, int d, int nt, bool cache_aware, bool debug_flag)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -406,7 +410,7 @@ void app_csk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 	size_t i;
 	fprintf(stderr, "First Pass, updating CSK ...\n");
 	
-	if(nt == 1)
+	if(nt == 1 && cache_aware == 0)
 	{
 		for(i = 0; i < num_files; i++)
 		{
@@ -451,7 +455,7 @@ void app_csk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 			}
 		}
 	}
-	else
+	if(nt > 1 && cache_aware == 0)
 	{
 		for(i = 0; i < num_files; i++)
 		{
@@ -503,24 +507,78 @@ void app_csk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 				{
 					threads[ti].join();
 				}
-				/*std::thread t0(run_thread_csk, 0);
-				std::thread t1(run_thread_csk, 1);
-				std::thread t2(run_thread_csk, 2);
-				std::thread t3(run_thread_csk, 3);
-				std::thread t4(run_thread_csk, 4);
-				std::thread t5(run_thread_csk, 5);
-				std::thread t6(run_thread_csk, 6);
-				std::thread t7(run_thread_csk, 7);
+				enclave_clear_csk(eid, ra_ctx);
 
-				t0.join();
-				t1.join();
-				t2.join();
-				t3.join();
-				t4.join();
-				t5.join();
-				t6.join();
-				t7.join();*/
+				num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+				num_elems_rem = num_elems_rem - to_read_elems;
 
+				// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+				delete[] ciphertext;
+			}
+		}
+	}
+	if(cache_aware == 1)
+	{
+		if((w >> 18) == 0)
+		{
+			fprintf(stderr, "Sketch width should be set larger than 2 ^ 18.\n");
+			exit(1);
+		}
+
+		for(i = 0; i < num_files; i++)
+		{
+			if(debug_flag)
+			{
+				fprintf(stderr, "First Pass, processing file: %lu ...\n", i);
+			}
+
+			// First, receive the total number of elements to be received
+			uint8_t* num_elems_buf;
+			size_t len_num_elems;
+			msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
+			uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
+
+			// Now, receive and process next data chunk until all data is processed
+			uint32_t num_elems_rem = num_elems;
+			uint32_t num_elems_rcvd = 0;
+			while(num_elems_rcvd != num_elems)
+			{
+				size_t to_read_elems = 0;
+				if(num_elems_rem < csz)
+				{
+					to_read_elems = num_elems_rem;
+				}
+				else
+				{
+					to_read_elems = csz;
+				}
+		
+				// Receive data (encrypted)
+				uint8_t* ciphertext;
+				size_t ciphertext_len;
+				msgio->read_bin((void**) &ciphertext, &ciphertext_len);
+
+				enclave_decrypt_store_csk(eid, ra_ctx, ciphertext, ciphertext_len);
+
+				if(d % nt != 0)
+				{
+					fprintf(stderr, "Please correct the number of threads.\n");
+					exit(1);
+				}
+				std::thread threads[nt];
+				int nrpt = d / nt;
+				int np = w >> 18;
+				for(int j = 0; j < np; j++)
+				{
+					for(int ti = 0; ti < nt; ti++)
+					{
+						threads[ti] = std::thread(run_thread_csk_ca, ti, nrpt, j);
+					}
+					for(int ti = 0; ti < nt; ti++)
+					{
+						threads[ti].join();
+					}
+				}
 				enclave_clear_csk(eid, ra_ctx);
 
 				num_elems_rcvd = num_elems_rcvd +  to_read_elems;
@@ -679,7 +737,7 @@ void app_csk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 }
 
 void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint32_t ncase, uint32_t ncontrol, \
-	uint32_t csz, int l, char *ofn, int k, int w, int d, int nt, bool debug_flag)
+	uint32_t csz, int l, char *ofn, int k, int w, int d, int nt, bool cache_aware, bool debug_flag)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -705,7 +763,7 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 	size_t i;
 	fprintf(stderr, "First Pass, updating CMS ...\n");
 	
-	if (nt == 1)
+	if(nt == 1 && cache_aware == 0)
 	{
 		for(i = 0; i < num_files; i++)
 		{
@@ -751,9 +809,8 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 			}
 		}
 	}
-	else 
+	if(nt > 1 && cache_aware == 0) 
 	{
-		fprintf(stderr, "First Pass, multithreading. num threads: %d\n", nt);
 		for(i = 0; i < num_files; i++)
 		{
 			if(debug_flag)
@@ -806,6 +863,79 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 					threads[ti].join();
 				}
 
+				enclave_clear_cms(eid, ra_ctx);
+
+				num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+				num_elems_rem = num_elems_rem - to_read_elems;
+
+				// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+				delete[] ciphertext;
+			}
+		}
+	}
+	if(cache_aware == 1)
+	{
+		if((w >> 18) == 0)
+		{
+			fprintf(stderr, "Sketch width should be set larger than 2 ^ 18.\n");
+			exit(1);
+		}
+
+		for(i = 0; i < num_files; i++)
+		{
+			if(debug_flag)
+			{
+				fprintf(stderr, "First Pass, processing file: %lu ...\n", i);
+			}
+
+			// First, receive the total number of elements to be received
+			uint8_t* num_elems_buf;
+			size_t len_num_elems;
+			msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
+			uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
+
+			// Now, receive and process next data chunk until all data is processed
+			uint32_t num_elems_rem = num_elems;
+			uint32_t num_elems_rcvd = 0;
+			while(num_elems_rcvd != num_elems)
+			{
+				size_t to_read_elems = 0;
+				if(num_elems_rem < csz)
+				{
+					to_read_elems = num_elems_rem;
+				}
+				else
+				{
+					to_read_elems = csz;
+				}
+		
+				// Receive data (encrypted)
+				uint8_t* ciphertext;
+				size_t ciphertext_len;
+				msgio->read_bin((void**) &ciphertext, &ciphertext_len);
+
+				enclave_decrypt_store_cms(eid, ra_ctx, ciphertext, ciphertext_len);
+
+				// Update sketches with NT threads
+				if(d % nt != 0)
+				{
+					fprintf(stderr, "Please correct the number of threads.\n");
+					exit(1);
+				}
+				std::thread threads[nt];
+				int nrpt = d / nt;
+				int np = w >> 18;
+				for(int j = 0; j < np; j++)
+				{
+					for(int ti = 0; ti < nt; ti++)
+					{
+						threads[ti] = std::thread(run_thread_cms_ca, ti, nrpt, j);
+					}
+					for(int ti = 0; ti < nt; ti++)
+					{
+						threads[ti].join();
+					}
+				}
 				enclave_clear_cms(eid, ra_ctx);
 
 				num_elems_rcvd = num_elems_rcvd +  to_read_elems;
@@ -1332,6 +1462,10 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 				{
 					(*params)->chunk_size = atoi(token);
 				}
+				else if(strcmp(var_name, "DEBUG") == 0)
+				{
+					(*params)->debug = atoi(token);
+				}
 				else if(strcmp(var_name, "HASH_OPTION") == 0)
 				{
 					if(strcmp((*params)->app_mode, "basic") != 0)
@@ -1359,6 +1493,26 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 					{
 						(*params)->sketch_mode = 0;
 					}
+				}
+				else if(strcmp(var_name, "NUM_CASES") == 0)
+				{
+					if((strcmp((*params)->app_mode, "sketch") != 0) &&
+						(strcmp((*params)->app_mode, "pca_sketch") != 0))
+					{
+						fprintf(stderr, "The parameter NUM_CASES is applicable only in mode sketch.\n");
+						exit(1);
+					}
+					(*params)->num_cases = atoi(token);
+				}
+				else if(strcmp(var_name, "NUM_CONTROLS") == 0)
+				{
+					if((strcmp((*params)->app_mode, "sketch") != 0) &&
+						(strcmp((*params)->app_mode, "pca_sketch") != 0))
+					{
+						fprintf(stderr, "The parameter NUM_CONTROLS is applicable only in mode sketch.\n");
+						exit(1);
+					}
+					(*params)->num_controls = atoi(token);
 				}
 				else if(strcmp(var_name, "SKETCH_WIDTH") == 0)
 				{
@@ -1408,15 +1562,15 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 					}
 					(*params)->l = (1 << atoi(token));
 				}
-				/*else if(strcmp(var_name, "SKETCH_ROW_UPDATE") == 0)
+				else if(strcmp(var_name, "SKETCH_CACHE") == 0)
 				{
 					if(strcmp((*params)->app_mode, "sketch") != 0)
 					{
 						fprintf(stderr, "The parameter SKETCH_ROW_UPDATE is applicable only in mode sketch.\n");
 						exit(1);
 					}
-					(*params)->sketch_rup = atoi(token);
-				}*/
+					(*params)->cache = atoi(token);
+				}
 				else if(strcmp(var_name, "SKETCH_CAND_ONLY") == 0)
 				{
 					if(strcmp((*params)->app_mode, "sketch") != 0)
@@ -1483,43 +1637,6 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 	}
 
 	config.server = strdup("127.0.0.1");
-
-/*	if(!have_spid && !config.mode == MODE_EPID )
-	{
-		fprintf(stderr, "SPID required. Use one of --spid or --spid-file \n");
-		exit(1);
-    }*/
-
-	// Can we run SGX?
-/*
-#ifndef SGX_HW_SIM
-	sgx_support = get_sgx_support();
-	if(sgx_support & SGX_SUPPORT_NO)
-	{
-		fprintf(stderr, "This system does not support Intel SGX.\n");
-        exit(1);
-    }
-	else
-	{
-		if(sgx_support & SGX_SUPPORT_ENABLE_REQUIRED)
-		{
-			fprintf(stderr, "Intel SGX is supported on this system but disabled in the BIOS\n");
-            exit(1);
-		}
-		else if(sgx_support & SGX_SUPPORT_REBOOT_REQUIRED)
-		{
-			fprintf(stderr, "Intel SGX will be enabled after the next reboot\n");
-			exit(1);
-		}
-		else if(!(sgx_support & SGX_SUPPORT_ENABLED))
-		{
-			fprintf(stderr, "Intel SGX is supported on this sytem but not available for use\n");
-			fprintf(stderr, "The system may lock BIOS support, or the Platform Software is not available\n");
-			exit(1);
-		}
-	} 
-#endif
-*/
 	//close_logfile(fplog);
 	fclose(param_file);
 }
@@ -1571,29 +1688,33 @@ int main(int argc, char** argv)
 				case 0:
 					if(params->sketch_cand_only == 1)
 					{
-						app_cms(msgio, config, params->num_files, params->num_files_case, 1000, 1000, \
-							params->chunk_size, params->l, params->output_file, \
-							0, params->sketch_width, params->sketch_depth, params->num_threads, false);
+						app_cms(msgio, config, params->num_files, params->num_files_case, \
+							params->num_cases, params->num_controls, params->chunk_size, \
+							params->l, params->output_file, 0, params->sketch_width, \
+							params->sketch_depth, params->num_threads, params->cache, params->debug);
 					}
         				else
 					{
-						app_cms(msgio, config, params->num_files, params->num_files_case, 1000, 1000, \
-							params->chunk_size, params->l, params->output_file, \
-							params->k, params->sketch_width, params->sketch_depth, params->num_threads, true);
+						app_cms(msgio, config, params->num_files, params->num_files_case, \
+							params->num_cases, params->num_controls, params->chunk_size, \
+							params->l, params->output_file, params->k, params->sketch_width, \
+							params->sketch_depth, params->num_threads, params->cache, params->debug);
 					}
 					break;
 				default:
 					if(params->sketch_cand_only == 1)
 					{
-						app_csk(msgio, config, params->num_files, params->num_files_case, 1000, 1000, \
-							params->chunk_size, params->l, params->output_file, \
-							0, params->sketch_width, params->sketch_depth, params->num_threads, false);
+						app_csk(msgio, config, params->num_files, params->num_files_case, \
+							params->num_cases, params->num_controls, params->chunk_size, \
+							params->l, params->output_file, 0, params->sketch_width, \
+							params->sketch_depth, params->num_threads, params->cache, params->debug);
 					}
         				else
 					{
-						app_csk(msgio, config, params->num_files, params->num_files_case, 1000, 1000, \
-							params->chunk_size, params->l, params->output_file, \
-							params->k, params->sketch_width, params->sketch_depth, params->num_threads, false);
+						app_csk(msgio, config, params->num_files, params->num_files_case, \
+							params->num_cases, params->num_controls, params->chunk_size, \
+							params->l, params->output_file, params->k, params->sketch_width, \
+							params->sketch_depth, params->num_threads, params->cache, params->debug);
 					}
 					break;
 			}

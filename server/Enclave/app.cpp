@@ -22,7 +22,7 @@
 
 #define L1_CACHE_SIZE		(1 << 14)
 #define	L2_CACHE_SIZE		(1 << 17)
-#define	PARTITION_SIZE		(1 << 20)
+#define	PARTITION_SIZE		(1 << 18)
 
 // Global Enclave Buffers and Variables
 //For testing the SVD correctness
@@ -239,7 +239,6 @@ sgx_status_t ecall_thread_cms(int thread_num, int nrows_per_thread)
 	for(i = 2; i < num_het_start + 2; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
-//		cms_update_var(rs_id_uint, ALLELE_HOMOZYGOUS * sign);
 
 		uint32_t hash;
 		uint32_t pos;
@@ -275,7 +274,6 @@ sgx_status_t ecall_thread_cms(int thread_num, int nrows_per_thread)
 	for(i = num_het_start + 2; i < num_elems; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
-//		cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
 
 		uint32_t hash;
 		uint32_t pos;
@@ -308,7 +306,7 @@ sgx_status_t ecall_thread_cms(int thread_num, int nrows_per_thread)
 	return SGX_SUCCESS;
 }
 
-sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num)
+sgx_status_t ecall_thread_cms_ca(int thread_num, int nrows_per_thread, int part_num)
 {
 	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
 	uint32_t num_elems = ptxt_len / 4;
@@ -328,35 +326,41 @@ sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num)
 	int16_t count = ALLELE_HOMOZYGOUS * sign;
 	size_t i;
 	uint64_t rs_id_uint;
+
 	for(i = 2; i < num_het_start + 2; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
-		//cms_update_var(rs_id_uint, ALLELE_HOMOZYGOUS * sign);
 
 		uint32_t hash;
 		uint32_t pos;
+		uint32_t row;
+
 		if(thread_num == 0)
 		{
-		m_cms->st_length = m_cms->st_length + count;
+			m_cms->st_length = m_cms->st_length + count;
 		}
 
-		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
-		pos = hash & m_cms->width_minus_one;
-
-		if(pos >= (part_num * PARTITION_SIZE) && pos < ((part_num + 1) * PARTITION_SIZE))
+		for(int j = 0; j < nrows_per_thread; j++)
 		{
+			row = thread_num * nrows_per_thread + j;
+			hash = cal_hash(rs_id_uint, m_cms->seeds[row << 1], m_cms->seeds[(row << 1) + 1]);
+			pos = hash & m_cms->width_minus_one;
 
-			if(m_cms->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
+			if(pos >= (part_num * PARTITION_SIZE) && pos < ((part_num + 1) * PARTITION_SIZE))
 			{
-				continue;
-			}
 
-			if(m_cms->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
-			{
-				continue;
-			}
+				if(m_cms->sketch[row][pos] >= HASH_MAX_16 && count > 0)
+				{
+					continue;
+				}
 
-			m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
+				if(m_cms->sketch[row][pos] <= HASH_MIN_16 && count < 0)
+				{
+					continue;
+				}
+
+				m_cms->sketch[row][pos] = m_cms->sketch[row][pos] + count;
+			}
 		}
 	}
 
@@ -364,31 +368,36 @@ sgx_status_t ecall_thread_cms_ca(int thread_num, int part_num)
 	for(i = num_het_start + 2; i < num_elems; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
-		//cms_update_var(rs_id_uint, ALLELE_HETEROZYGOUS * sign);
 
 		uint32_t hash;
 		uint32_t pos;
+		uint32_t row;
+
 		if(thread_num == 0)
 		{
-		m_cms->st_length = m_cms->st_length + count;
+			m_cms->st_length = m_cms->st_length + count;
 		}
 
-		hash = cal_hash(rs_id_uint, m_cms->seeds[thread_num << 1], m_cms->seeds[(thread_num << 1) + 1]);
-		pos = hash & m_cms->width_minus_one;
-
-		if(pos >= (part_num * PARTITION_SIZE) && pos < ((part_num + 1) * PARTITION_SIZE))
+		for(int j = 0; j < nrows_per_thread; j++)
 		{
-			if(m_cms->sketch[thread_num][pos] >= HASH_MAX_16 && count > 0)
-			{
-				continue;
-			}
+			row = thread_num * nrows_per_thread + j;
+			hash = cal_hash(rs_id_uint, m_cms->seeds[row << 1], m_cms->seeds[(row << 1) + 1]);
+			pos = hash & m_cms->width_minus_one;
 
-			if(m_cms->sketch[thread_num][pos] <= HASH_MIN_16 && count < 0)
+			if(pos >= (part_num * PARTITION_SIZE) && pos < ((part_num + 1) * PARTITION_SIZE))
 			{
-				continue;
-			}
+				if(m_cms->sketch[row][pos] >= HASH_MAX_16 && count > 0)
+				{
+					continue;
+				}
 
-			m_cms->sketch[thread_num][pos] = m_cms->sketch[thread_num][pos] + count;
+				if(m_cms->sketch[row][pos] <= HASH_MIN_16 && count < 0)
+				{
+					continue;
+				}
+
+				m_cms->sketch[row][pos] = m_cms->sketch[row][pos] + count;
+			}
 		}
 	}
 	return SGX_SUCCESS;
@@ -415,6 +424,7 @@ sgx_status_t ecall_thread_csk(int thread_num, int nrows_per_thread)
 	int16_t count_;
 	size_t i;
 	uint64_t rs_id_uint;
+
 	for(i = 2; i < num_het_start + 2; i++)
 	{
 		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
@@ -477,6 +487,103 @@ sgx_status_t ecall_thread_csk(int thread_num, int nrows_per_thread)
 			}
 
 			m_csk->sketch[row][pos] = m_csk->sketch[row][pos] + count_;
+		}
+	}
+
+	return SGX_SUCCESS;
+}
+
+sgx_status_t ecall_thread_csk_ca(int thread_num, int nrows_per_thread, int part_num)
+{
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = ptxt_len / 4;
+
+	// Get the meta information first
+	uint32_t patient_status = ((uint32_t*) ptxt) [0];
+	uint32_t num_het_start = ((uint32_t*) ptxt) [1];
+
+	// Sign is +1 for case and -1 for control
+	int16_t sign = 1;
+	if(patient_status == 0)
+	{
+		sign = -1;
+	}
+
+	// Update the current row of the CSK
+	int16_t count = ALLELE_HOMOZYGOUS * sign;
+	int16_t count_;
+	size_t i;
+	uint64_t rs_id_uint;
+
+	for(i = 2; i < num_het_start + 2; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+
+		uint32_t hash;
+		uint32_t pos;
+		uint32_t row;
+
+		for(int j = 0; j < nrows_per_thread; j++)
+		{
+			row = thread_num * nrows_per_thread + j;
+			hash = cal_hash(rs_id_uint, m_csk->seeds[row << 1], m_csk->seeds[(row << 1) + 1]);
+			pos = hash & m_csk->width_minus_one;
+
+			hash = cal_hash(rs_id_uint, m_csk->seeds[(row + m_csk->depth) << 1], 
+					m_csk->seeds[((row + m_csk->depth) << 1) + 1]);
+			count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
+
+			if(pos >= (part_num * PARTITION_SIZE) && pos < ((part_num + 1) * PARTITION_SIZE))
+			{
+				if(m_csk->sketch[row][pos] >= HASH_MAX_16 && count_ > 0)
+				{
+					continue;
+				}
+
+				if(m_csk->sketch[row][pos] <= HASH_MIN_16 && count_ < 0)
+				{
+					continue;
+				}
+
+				m_csk->sketch[row][pos] = m_csk->sketch[row][pos] + count_;
+			}
+		}
+	}
+
+	count = ALLELE_HETEROZYGOUS * sign;
+	for(i = num_het_start + 2; i < num_elems; i++)
+	{
+		rs_id_uint = (uint64_t) ((uint32_t*) ptxt) [i];
+
+		uint32_t hash;
+		uint32_t pos;
+		uint32_t row;
+
+		for(int j = 0; j < nrows_per_thread; j++)
+		{
+			row = thread_num * nrows_per_thread + j;
+			hash = cal_hash(rs_id_uint, m_csk->seeds[row << 1], m_csk->seeds[(row << 1) + 1]);
+			pos = hash & m_csk->width_minus_one;
+
+			hash = cal_hash(rs_id_uint, m_csk->seeds[(row+ m_csk->depth) << 1], 
+					m_csk->seeds[((row + m_csk->depth) << 1) + 1]);
+			count_ = (((hash & 0x1) == 0) ? -1 : 1) * count;
+
+			if(pos >= (part_num * PARTITION_SIZE) && pos < ((part_num + 1) * PARTITION_SIZE))
+			{
+
+				if(m_csk->sketch[row][pos] >= HASH_MAX_16 && count_ > 0)
+				{
+					continue;
+				}
+
+				if(m_csk->sketch[row][pos] <= HASH_MIN_16 && count_ < 0)
+				{
+					continue;
+				}
+
+				m_csk->sketch[row][pos] = m_csk->sketch[row][pos] + count_;
+			}
 		}
 	}
 
