@@ -1660,7 +1660,17 @@ int main(int argc, char** argv)
 	MsgIO* msgio;
 	//parse(argv[0], NULL, config);
 
-	if(!remote_attestation(config, &msgio))
+        bool do_ra = false;
+        bool proceed = true; 
+
+        if (do_ra) {
+            proceed = !remote_attestation(config, &msgio);
+        } else {
+            fprintf(stderr, "Skipping Remote Attestation.\n");
+            proceed = !skip_ra(config, &msgio);
+        }
+
+	if(proceed)
 	{
 		if(strcmp(params->app_mode, "basic") == 0)
 		{
@@ -1733,6 +1743,12 @@ int main(int argc, char** argv)
 					params->num_pc, params->eps, false);
 		}
 
-		finalize(msgio, config);
+                if (do_ra) {
+                    finalize(msgio, config);
+                } else {
+                    msgio->disconnect();
+                    delete msgio;
+                    sgx_destroy_enclave(config.eid);
+                }
 	}
 }

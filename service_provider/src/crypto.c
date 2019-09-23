@@ -922,7 +922,7 @@ int aescbc_decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char 
 int init_prg() 
 {
     // Seed the PRG
-    int rc = RAND_load_file("/dev/random", 32);
+    int rc = RAND_load_file("/dev/urandom", 32);
     if(rc != 32) {
         return -1;
     }

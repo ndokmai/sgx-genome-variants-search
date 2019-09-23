@@ -48,6 +48,8 @@ MsgIO::MsgIO()
 	use_stdio = true;
 	s= -1;
 	ls= -1;
+        // initialize secret key
+        memset(sk, 0, sizeof(sk));
 }
 
 /* Connect to a remote server and port, and use socket IO */
@@ -58,6 +60,8 @@ MsgIO::MsgIO(const char *peer, const char *port)
 	struct addrinfo *addrs, *addr, hints;
 
 	use_stdio= false;
+        // initialize secret key
+        memset(sk, 0, sizeof(sk));
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;

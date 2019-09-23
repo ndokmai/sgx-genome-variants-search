@@ -48,6 +48,7 @@ MsgIO::MsgIO()
 	use_stdio = true;
 	s= -1;
 	ls= -1;
+        memset(sk, 0, sizeof(sk));
 }
 
 /* Connect to a remote server and port, and use socket IO */
@@ -58,6 +59,7 @@ MsgIO::MsgIO(const char *peer, const char *port)
 	struct addrinfo *addrs, *addr, hints;
 
 	use_stdio= false;
+        memset(sk, 0, sizeof(sk));
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -102,6 +104,7 @@ MsgIO::MsgIO(const char *peer, const char *port)
 		}
 		throw std::runtime_error("could not establish socket");
 	}
+
 
 	if ( peer == NULL ) {	// Server here. Create our listening socket.
 		int enable= 1;

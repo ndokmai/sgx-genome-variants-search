@@ -543,10 +543,19 @@ int main(int argc, char** argv)
 
 	MsgIO* msgio;
 	//parse(argv[0], NULL, config);
+
+        bool do_ra = false;
 	
 	if(!connect(config, &msgio)) 
 	{
-		remote_attestation(config, msgio);
+                if (do_ra) {
+                    remote_attestation(config, msgio);
+                } else {
+                    fprintf(stderr, "Skipping Remote Attestation.\n");
+                    //uint8_t sk[16] = {0};
+                    //msgio->set_sk(sk);
+                    msgio->server_loop(); 
+                }
 	
 		if(strcmp(params->app_mode, "basic") == 0)
 			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 0);

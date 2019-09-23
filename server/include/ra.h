@@ -20,6 +20,7 @@ typedef struct config_struct {
 } config_t;
 
 int parse_config(int argc, char *argv[], config_t& config);
+int skip_ra(config_t& config, MsgIO **_msgio);
 int remote_attestation(config_t& config, MsgIO **_msgio);
 void finalize(MsgIO* msgio, config_t& config);
 

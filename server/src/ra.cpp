@@ -357,6 +357,45 @@ int parse_config(int argc, char *argv[], config_t& config)
     return 0;
 }
 
+int skip_ra(config_t& config, MsgIO **_msgio) {
+    sgx_launch_token_t token= { 0 };
+    sgx_status_t status;
+    config.eid = 0;
+    auto & eid = config.eid;
+    int updated= 0;
+    int sgx_support;
+    uint32_t i;
+    EVP_PKEY *service_public_key= NULL;
+    char have_spid= 0;
+    char flag_stdio= 0;
+
+    /* Launch the enclave */
+    status = sgx_create_enclave_search(ENCLAVE_NAME,
+            SGX_DEBUG_FLAG, &token, &updated, &eid, 0);
+    if ( status != SGX_SUCCESS ) {
+        fprintf(stderr, "sgx_create_enclave: %s: %08x\n",
+                ENCLAVE_NAME, status);
+        if ( status == SGX_ERROR_ENCLAVE_FILE_ACCESS ) 
+            fprintf(stderr, "Did you forget to set LD_LIBRARY_PATH?\n");
+        return 1;
+    }
+
+    if ( config.server == NULL ) {
+        *_msgio = new MsgIO();
+    } else {
+        try {
+            *_msgio = new MsgIO(config.server, (config.port == NULL) ?
+                    DEFAULT_PORT : config.port);
+        }
+        catch(...) {
+            exit(1);
+        }
+    }
+
+    return 0;
+
+}
+
 int remote_attestation(config_t& config, MsgIO **_msgio)
 {
     sgx_launch_token_t token= { 0 };

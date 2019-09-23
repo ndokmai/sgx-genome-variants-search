@@ -4,7 +4,7 @@
 #include <openssl/evp.h>
 #include "Enclave_t.h"
 
-uint8_t sk[16];
+uint8_t sk[16] = {0};
 
 void enclave_derive_key(sgx_ra_context_t ctx)
 {
