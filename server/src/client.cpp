@@ -1136,7 +1136,7 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case,
 	for(i = 0; i < num_files; i++)
 	{
 		// TODO: This flag does not seem to work
-		fprintf(stderr, "First pass, processing file: %lu ...\n", i);
+		//fprintf(stderr, "First pass, processing file: %lu ...\n", i);
 		if(debug_flag)
 		{
 			fprintf(stderr, "First pass, processing file: %lu ...\n", i);
