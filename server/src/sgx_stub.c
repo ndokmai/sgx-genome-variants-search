@@ -21,6 +21,7 @@ in the License.
 #else
 # include <dlfcn.h>
 #endif
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "sgx_stub.h"
