@@ -120,6 +120,7 @@ src/Enclave_u.c: $(SGX_EDGER8R) Enclave/Enclave.edl
 	@echo "GEN  =>  $@"
 
 obj/Enclave_u.o: src/Enclave_u.c
+	mkdir -p obj
 	$(CC) $(App_C_Flags) -c $< -o $@
 	@echo "CXX   <=  $<"
 
@@ -143,10 +144,12 @@ Enclave/Enclave_t.c: $(SGX_EDGER8R) Enclave/Enclave.edl
 	@echo "GEN  =>  $@"
 
 obj/Enclave_t.o: Enclave/Enclave_t.c
+	mkdir -p obj
 	$(CC) $(Enclave_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
 obj/%.o: Enclave/%.cpp
+	mkdir -p obj
 	$(CXX) $(Enclave_C_Flags) -c $< -o $@
 	@echo "CC  <=  $<"
 
