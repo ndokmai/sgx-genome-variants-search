@@ -4,7 +4,7 @@
 #include <inttypes.h>
 
 #define MAX_BUFFER_SIZE	500000
-#define	MAX_FNAME		64
+#define	MAX_FNAME		256
 
 void strip_ext(char* fname)
 {
@@ -23,7 +23,7 @@ void strip_ext(char* fname)
 int main(int argc, char** argv)
 {
 	/* Check command line arguments */
-	if(argc < 5)
+	if(argc < 3)
 	{
 		fprintf(stderr, "Usage:\t%s\t<Input VCF>\t<CASE(1)/CONTROL(0)>\t<QUAL_THRESH>\t<FILTER1,FILTER2,...>\n", argv[0]);
 		return 0;
@@ -51,34 +51,40 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	/* Get the QUAL threshold for filtering SNPs */
-	int qual_thresh = atoi(argv[3]);
-
-	/* Get the values in the FILTER field for filtering SNPs */
-	int tok_count = 1;
 	size_t i;
-	for(i = 0; i < strlen(argv[4]); i++)
-	{
-		if(argv[4][i] == ',')
-		{
-			tok_count = tok_count + 1;
-		}
-	}
-
+	int qual_thresh;
+	int tok_count;
 	char** filter_arr;
-	filter_arr = (char**) malloc(tok_count * sizeof(char*));
-	for(i = 0; i < tok_count; i++)
+	if(argc > 3)
 	{
-		filter_arr[i] = (char*) malloc(MAX_FNAME * sizeof(char));
-	}
+		/* Get the QUAL threshold for filtering SNPs */
+		qual_thresh = atoi(argv[3]);
 
-	i = 0;
-	char* temp = strtok(argv[4], ",");
-	while(temp != NULL)
-	{
-		filter_arr[i] = temp;
-		i = i + 1;
-		temp = strtok(NULL, ",");
+		/* Get the values in the FILTER field for filtering SNPs */
+		tok_count = 1;
+		for(i = 0; i < strlen(argv[4]); i++)
+		{
+			if(argv[4][i] == ',')
+			{
+				tok_count = tok_count + 1;
+			}
+		}
+
+		filter_arr;
+		filter_arr = (char**) malloc(tok_count * sizeof(char*));
+		for(i = 0; i < tok_count; i++)
+		{
+			filter_arr[i] = (char*) malloc(MAX_FNAME * sizeof(char));
+		}
+
+		i = 0;
+		char* temp = strtok(argv[4], ",");
+		while(temp != NULL)
+		{
+			filter_arr[i] = temp;
+			i = i + 1;
+			temp = strtok(NULL, ",");
+		}
 	}
 
 	/* Start main program */
@@ -117,26 +123,29 @@ int main(int argc, char** argv)
 		token = strtok(line, "\t");
 		while(token != NULL)
 		{
-			/* If the QUAL of the current SNP is lower than the threshold, drop the current entry */
-			if(col_num == 5 && atoi(token) < qual_thresh)
+			if(argc > 3)
 			{
-				break;
-			}
-
-			if(col_num == 6)
-			{
-				int dropped = 0;
-				for(i = 0; i < tok_count; i++)
-				{
-					if(strstr(token, filter_arr[i]) != NULL)
-					{
-						dropped = 1;
-						break;
-					}
-				}
-				if(dropped)
+				/* If the QUAL of the current SNP is lower than the threshold, drop the current entry */
+				if(col_num == 5 && atoi(token) < qual_thresh)
 				{
 					break;
+				}
+
+				if(col_num == 6)
+				{
+					int dropped = 0;
+					for(i = 0; i < tok_count; i++)
+					{
+						if(strstr(token, filter_arr[i]) != NULL)
+						{
+							dropped = 1;
+							break;
+						}
+					}
+					if(dropped)
+					{
+						break;
+					}
 				}
 			}
 

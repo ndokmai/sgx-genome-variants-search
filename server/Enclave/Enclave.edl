@@ -69,6 +69,7 @@ enclave
 
 		public void enclave_init_rhht_pcc(int MH_INIT_CAPACITY);
 		public void enclave_decrypt_process_rhht_pcc(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
+		public void enclave_decrypt_init_rhht_pcc(sgx_ra_context_t ctx, [user_check] uint8_t* ciphertext, size_t ciphertext_len);
 
 		// Chained-Move-to-Front Hash Table public ECALL interface
 		public void enclave_init_cmtf(int CMTF_NUM_BUCKETS);

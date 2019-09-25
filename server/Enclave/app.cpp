@@ -764,6 +764,44 @@ void enclave_decrypt_process_rhht_pcc(sgx_ra_context_t ctx, uint8_t* ciphertext,
 	// We've processed the data, now clear it
 	delete[] plaintext;
 }
+
+void enclave_decrypt_init_rhht_pcc(sgx_ra_context_t ctx, uint8_t* ciphertext, size_t ciphertext_len)
+{
+	// Buffer to hold the secret key
+	uint8_t sk[16];
+
+	// Buffer to hold the decrypted plaintext
+	// Plaintext length can't be longer than the ciphertext length
+	uint8_t* plaintext = new uint8_t[ciphertext_len];
+
+	// Internal Enclave function to fetch the secret key
+	enclave_getkey(sk);
+
+	// Decrypt the ciphertext, place it inside the plaintext buffer and return the length of the plaintext
+	size_t plaintext_len = enclave_decrypt(ciphertext, ciphertext_len, sk, plaintext);
+
+	// Since each ID in our dataset is a 4-byte unsigned integer, we can get the number of elements
+	uint32_t num_elems = plaintext_len / 4;
+
+	// Get the CSK depth
+	uint32_t csk_depth = m_csk->depth;
+
+	// Allocate enclave Robin-Hood hash table
+	// TODO: Allow growing (currently not)
+	allocate_table_pcc(1 << 20, MCSK_NUM_PC);
+
+	// Insert keys, initialize allele counts to be 0
+	uint32_t i;
+	uint32_t rs_id_uint;
+	for(i = 0; i < num_elems; i++)
+	{
+		rs_id_uint = ((uint32_t*) plaintext) [i];
+		insert_pcc(rs_id_uint);
+	}
+	
+	// We've processed the data, now clear it
+	delete[] plaintext;
+}
 /**** END: SNP Ranking Using Sketch and RHHT *****/
 
 /***** BEGIN: Enclave Count-Min-Sketch Public Interface *****/

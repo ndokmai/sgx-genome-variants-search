@@ -278,7 +278,7 @@ void run_sp(MsgIO* msgio, uint32_t nf, char* fdir, char* ufname, uint32_t csz, i
 		swap(&index[i], &index[j]);
 	}
 	
-	// Currently support 3 distinct protocols
+	// Currently support 5 distinct protocols
 	switch(mode)
 	{
 		// For hash tables, just send the vcf files in random order
@@ -288,29 +288,41 @@ void run_sp(MsgIO* msgio, uint32_t nf, char* fdir, char* ufname, uint32_t csz, i
 			break;
 		// For sketches, first send the vcf files in random order
 		// Then send a single (query) file with the unique SNP IDs
-		// Finally send the vcf files again in random order
+		// Only return the top l candidates
 		case 1:
 			send_encrypted_vcf(msgio, nf, csz, index, filenames);
 			fprintf(stderr, "Completed sending vcf files in random order.\n");
 			send_encrypted_snpid(msgio, csz, ufname);
 			fprintf(stderr, "Completed sending SNP IDs to query.\n");
-			send_encrypted_vcf(msgio, nf, csz, index, filenames);
-			fprintf(stderr, "Completed sending vcf files in random order.\n");
 			break;
 		// For sketches, first send the vcf files in random order
 		// Then send a single (query) file with the unique SNP IDs
-		// Only return the top l candidates
-		case 11:
+		// Finally send the vcf files again in random order
+		case 2:
 			send_encrypted_vcf(msgio, nf, csz, index, filenames);
 			fprintf(stderr, "Completed sending vcf files in random order.\n");
 			send_encrypted_snpid(msgio, csz, ufname);
 			fprintf(stderr, "Completed sending SNP IDs to query.\n");
+			send_encrypted_vcf(msgio, nf, csz, index, filenames);
+			fprintf(stderr, "Completed sending vcf files in random order.\n");
+			break;
+		// For popstrat correction and CA chi2 test without sketching
+		// First send the vcf files in random order
+		// Then send a single (query) file with the unique SNP IDs
+		// Finally send the vcf files again in random order one time
+		case 3:
+			send_encrypted_vcf(msgio, nf, csz, index, filenames);
+			fprintf(stderr, "Completed sending vcf files in random order.\n");
+			send_encrypted_snpid(msgio, csz, ufname);
+			fprintf(stderr, "Completed sending SNP IDs to query.\n");
+			send_encrypted_vcf(msgio, nf, csz, index, filenames);
+			fprintf(stderr, "Completed sending vcf files in random order.\n");
 			break;
 		// For popstrat correction and CA chi2 test
 		// First send the vcf files in random order two times
 		// Then send a single (query) file with the unique SNP IDs
 		// Finally send the vcf files again in random order one time
-		case 2:
+		case 4:
 			send_encrypted_vcf(msgio, nf, csz, index, filenames);
 			fprintf(stderr, "Completed sending vcf files in random order.\n");
 			send_encrypted_vcf(msgio, nf, csz, index, filenames);
@@ -560,21 +572,13 @@ int main(int argc, char** argv)
 		if(strcmp(params->app_mode, "basic") == 0)
 			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 0);
 		if(strcmp(params->app_mode, "sketch") == 0)
-			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 11);
-
-		//if(strcmp(app_mode, "cms_mt") == 0)
-		//	run_sp(msgio);
-		//if(strcmp(app_mode, "cms_mt_ca") == 0)
-		//	run_sp(msgio);
-		//if(strcmp(app_mode, "csk_mt") == 0)
-		//	run_sp(msgio);
-
-		if(strcmp(params->app_mode, "sketch_topk") == 0)
 			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 1);
-		if(strcmp(params->app_mode, "pca_sketch") == 0)
+		if(strcmp(params->app_mode, "sketch_topk") == 0)
 			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 2);
-		//if(strcmp(params->app_mode, "sketch_pca_topk") == 0)
-		//	run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 2);
+		if(strcmp(params->app_mode, "preprocess") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 3);
+		if(strcmp(params->app_mode, "full") == 0)
+			run_sp(msgio, params->num_files, params->vcf_dir, params->snp_ids, params->chunk_size, 4);
 		
 		finalize(msgio, config);
 		fprintf(stderr, "Service Provider Closed.\n");

@@ -1106,7 +1106,8 @@ void app_cms(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, uint
 }
 
 void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case, \
-	uint32_t csz, int l, char *ofn, int k, int w, int d, int num_pc, float eps, bool debug_flag)
+	uint32_t csz, int l, char *ofn, int k, int w, int d, int num_pc, float eps, \
+	bool sketching_flag, bool debug_flag)
 {
 	// Get the Enclave ID from the configuration
 	auto& eid = config.eid;
@@ -1134,6 +1135,8 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case,
 	fprintf(stderr, "First Pass, updating MCSK ...\n");
 	for(i = 0; i < num_files; i++)
 	{
+		// TODO: This flag does not seem to work
+		fprintf(stderr, "First pass, processing file: %lu ...\n", i);
 		if(debug_flag)
 		{
 			fprintf(stderr, "First pass, processing file: %lu ...\n", i);
@@ -1195,20 +1198,73 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case,
 	duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
 	fprintf(stderr, "SVD took: %lf seconds\n", duration);
 
-	// Restart timer
-	start = std::clock();
+	if (sketching_flag) {
+		// Restart timer
+		start = std::clock();
 
-	// Make an ECALL to initialize the Enclave CSK structure
-	enclave_init_csk_f(eid, w, d);
+		// Make an ECALL to initialize the Enclave CSK structure
+		enclave_init_csk_f(eid, w, d);
 
-	// Second Pass: Update the CSK structure
-	fprintf(stderr, "Second Pass, updating CSK ...\n");
-	for(i = 0; i < num_files; i++)
-	{
-		if(debug_flag)
+		// Second Pass: Update the CSK structure
+		fprintf(stderr, "Second Pass, updating CSK ...\n");
+		for(i = 0; i < num_files; i++)
 		{
-			fprintf(stderr, "Second pass, processing file: %lu ...\n", i);
+			if(debug_flag)
+			{
+				fprintf(stderr, "Second pass, processing file: %lu ...\n", i);
+			}
+
+			// First, receive the total number of elements to be received
+			uint8_t* num_elems_buf;
+			size_t len_num_elems;
+			msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
+			uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
+
+			// Now, receive and process next data chunk until all data is processed
+			uint32_t num_elems_rem = num_elems;
+			uint32_t num_elems_rcvd = 0;
+			while(num_elems_rcvd != num_elems)
+			{
+				size_t to_read_elems = 0;
+				if(num_elems_rem < csz)
+				{
+					to_read_elems = num_elems_rem;
+				}
+				else
+				{
+					to_read_elems = csz;
+				}
+		
+				// Receive data (encrypted)
+				uint8_t* ciphertext;
+				size_t ciphertext_len;
+				msgio->read_bin((void**) &ciphertext, &ciphertext_len);
+
+				// Make an ECALL to decrypt the data and process it inside the Enclave
+				enclave_decrypt_update_csk_f(eid, ra_ctx, ciphertext, ciphertext_len);
+				num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+				num_elems_rem = num_elems_rem - to_read_elems;
+
+				// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+				delete[] ciphertext;
+			}
 		}
+
+		// Reset file_idx
+		enclave_reset_file_idx(eid);
+
+		// Stop timer and report time for the second pass over the data
+		duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
+		fprintf(stderr, "Second Pass (CSK) took: %lf seconds\n", duration);
+
+		// Restart timer
+		start = std::clock();
+
+		// Initialize the min-heap within the enclave
+		enclave_init_mh_f(eid, l);
+
+		// Third Pass: Query the CSK structure
+		fprintf(stderr, "Third pass, querying CSK ...\n");
 
 		// First, receive the total number of elements to be received
 		uint8_t* num_elems_buf;
@@ -1237,73 +1293,73 @@ void app_svd_mcsk(MsgIO* msgio, config_t& config, uint32_t nf, uint32_t nf_case,
 			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
 
 			// Make an ECALL to decrypt the data and process it inside the Enclave
-			enclave_decrypt_update_csk_f(eid, ra_ctx, ciphertext, ciphertext_len);
+			enclave_decrypt_query_csk_f(eid, ra_ctx, ciphertext, ciphertext_len);
 			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
 			num_elems_rem = num_elems_rem - to_read_elems;
 
 			// We've processed the secret data, now either clean it up or use data sealing for a second pass later
 			delete[] ciphertext;
 		}
+
+		// Stop timer and report time for the second pass over the data
+		duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
+		fprintf(stderr, "Third Pass (CSK) took: %lf seconds\n", duration);
+
+		// Last Pass: Use rhht and mh for pcc
+		fprintf(stderr, "Last pass, C-A Trend Test ...\n");
+		enclave_init_rhht_pcc(eid, l);
 	}
-
-	// Reset file_idx
-	enclave_reset_file_idx(eid);
-
-	// Stop timer and report time for the second pass over the data
-	duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
-	fprintf(stderr, "Second Pass (CSK) took: %lf seconds\n", duration);
-
-	// Restart timer
-	start = std::clock();
-
-	// Initialize the min-heap within the enclave
-	enclave_init_mh_f(eid, l);
-
-	// Third Pass: Query the CSK structure
-	fprintf(stderr, "Third pass, querying CSK ...\n");
-
-	// First, receive the total number of elements to be received
-	uint8_t* num_elems_buf;
-	size_t len_num_elems;
-	msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
-	uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
-
-	// Now, receive and process next data chunk until all data is processed
-	uint32_t num_elems_rem = num_elems;
-	uint32_t num_elems_rcvd = 0;
-	while(num_elems_rcvd != num_elems)
+	else
 	{
-		size_t to_read_elems = 0;
-		if(num_elems_rem < csz)
-		{
-			to_read_elems = num_elems_rem;
-		}
-		else
-		{
-			to_read_elems = csz;
-		}
+		// Restart timer
+		start = std::clock();
 		
-		// Receive data (encrypted)
-		uint8_t* ciphertext;
-		size_t ciphertext_len;
-		msgio->read_bin((void**) &ciphertext, &ciphertext_len);
+		// Second Pass: Initializing RHHT structure
+		fprintf(stderr, "Second pass, initializing RHHT ...\n");
 
-		// Make an ECALL to decrypt the data and process it inside the Enclave
-		enclave_decrypt_query_csk_f(eid, ra_ctx, ciphertext, ciphertext_len);
-		num_elems_rcvd = num_elems_rcvd +  to_read_elems;
-		num_elems_rem = num_elems_rem - to_read_elems;
+		// First, receive the total number of elements to be received
+		uint8_t* num_elems_buf;
+		size_t len_num_elems;
+		msgio->read_bin((void**) &num_elems_buf, &len_num_elems);
+		uint32_t num_elems = ((uint32_t*) num_elems_buf)[0];
 
-		// We've processed the secret data, now either clean it up or use data sealing for a second pass later
-		delete[] ciphertext;
+		// Now, receive and process next data chunk until all data is processed
+		uint32_t num_elems_rem = num_elems;
+		uint32_t num_elems_rcvd = 0;
+		while(num_elems_rcvd != num_elems)
+		{
+			size_t to_read_elems = 0;
+			if(num_elems_rem < csz)
+			{
+				to_read_elems = num_elems_rem;
+			}
+			else
+			{
+				to_read_elems = csz;
+			}
+		
+			// Receive data (encrypted)
+			uint8_t* ciphertext;
+			size_t ciphertext_len;
+			msgio->read_bin((void**) &ciphertext, &ciphertext_len);
+
+			// Make an ECALL to decrypt the data and process it inside the Enclave
+			enclave_decrypt_init_rhht_pcc(eid, ra_ctx, ciphertext, ciphertext_len);
+			num_elems_rcvd = num_elems_rcvd +  to_read_elems;
+			num_elems_rem = num_elems_rem - to_read_elems;
+
+			// We've processed the secret data, now either clean it up or use data sealing for a second pass later
+			delete[] ciphertext;
+		}
+
+		// Stop timer and report time for the second pass over the data
+		duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
+		fprintf(stderr, "Second Pass (Initializing RHHT) took: %lf seconds\n", duration);
+
+		// Last Pass: Use rhht and mh for pcc
+		fprintf(stderr, "Last pass, C-A Trend Test ...\n");
 	}
 
-	// Stop timer and report time for the second pass over the data
-	duration = (std::clock() - start ) / (double) CLOCKS_PER_SEC;
-	fprintf(stderr, "Third Pass (CSK) took: %lf seconds\n", duration);
-
-	// Last Pass: Use rhht and mh for pcc
-	fprintf(stderr, "Last pass, C-A Trend Test ...\n");
-	enclave_init_rhht_pcc(eid, l);
 	for(i = 0; i < num_files; i++)
 	{
 		if (debug_flag)
@@ -1497,7 +1553,8 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 				else if(strcmp(var_name, "NUM_CASES") == 0)
 				{
 					if((strcmp((*params)->app_mode, "sketch") != 0) &&
-						(strcmp((*params)->app_mode, "pca_sketch") != 0))
+						(strcmp((*params)->app_mode, "preprocess") != 0) &&
+						(strcmp((*params)->app_mode, "full") != 0))
 					{
 						fprintf(stderr, "The parameter NUM_CASES is applicable only in mode sketch.\n");
 						exit(1);
@@ -1507,7 +1564,8 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 				else if(strcmp(var_name, "NUM_CONTROLS") == 0)
 				{
 					if((strcmp((*params)->app_mode, "sketch") != 0) &&
-						(strcmp((*params)->app_mode, "pca_sketch") != 0))
+						(strcmp((*params)->app_mode, "preprocess") != 0) &&
+						(strcmp((*params)->app_mode, "full") != 0))
 					{
 						fprintf(stderr, "The parameter NUM_CONTROLS is applicable only in mode sketch.\n");
 						exit(1);
@@ -1517,7 +1575,8 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 				else if(strcmp(var_name, "SKETCH_WIDTH") == 0)
 				{
 					if((strcmp((*params)->app_mode, "sketch") != 0) &&
-						(strcmp((*params)->app_mode, "pca_sketch") != 0))
+						(strcmp((*params)->app_mode, "preprocess") != 0) &&
+						(strcmp((*params)->app_mode, "full") != 0))
 					{
 						fprintf(stderr, "The parameter SKETCH_WIDTH is applicable only in mode sketch.\n");
 						exit(1);
@@ -1527,7 +1586,8 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 				else if(strcmp(var_name, "SKETCH_DEPTH") == 0)
 				{
 					if((strcmp((*params)->app_mode, "sketch") != 0) &&
-						(strcmp((*params)->app_mode, "pca_sketch") != 0))
+						(strcmp((*params)->app_mode, "preprocess") != 0) &&
+						(strcmp((*params)->app_mode, "full") != 0))
 					{
 						fprintf(stderr, "The parameter SKETCH_DEPTH is applicable only in mode sketch.\n");
 						exit(1);
@@ -1536,7 +1596,8 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 				}
 				else if(strcmp(var_name, "NUM_PC") == 0)
 				{
-					if(strcmp((*params)->app_mode, "pca_sketch") != 0)
+					if((strcmp((*params)->app_mode, "preprocess") != 0) &&
+						(strcmp((*params)->app_mode, "full") != 0))
 					{
 						fprintf(stderr, "The parameter NUM_PC is applicable only in mode pca_sketch.\n");
 						exit(1);
@@ -1545,7 +1606,8 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 				}
 				else if(strcmp(var_name, "EPSILON") == 0)
 				{
-					if(strcmp((*params)->app_mode, "pca_sketch") != 0)
+					if((strcmp((*params)->app_mode, "preprocess") != 0) &&
+						(strcmp((*params)->app_mode, "full") != 0))
 					{
 						fprintf(stderr, "The parameter NUM_PC is applicable only in mode pca_sketch.\n");
 						exit(1);
@@ -1555,7 +1617,7 @@ void new_parse(char* param_path, app_parameters** params, config_t& config)
 				else if(strcmp(var_name, "NUM_TOP_CAND") == 0)
 				{
 					if((strcmp((*params)->app_mode, "sketch") != 0) &&
-						(strcmp((*params)->app_mode, "pca_sketch") != 0))
+						(strcmp((*params)->app_mode, "full") != 0))
 					{
 						fprintf(stderr, "The parameter NUM_TOP_CAND is applicable only in mode sketch.\n");
 						exit(1);
@@ -1729,7 +1791,7 @@ int main(int argc, char** argv)
 					break;
 			}
 		}
-		else if(strcmp(params->app_mode, "pca_sketch") == 0)
+		else if(strcmp(params->app_mode, "preprocess") == 0)
 		{
 			float epsilon = params->eps * params->eps;
 			if(params->num_pc / epsilon > 16000)
@@ -1740,7 +1802,20 @@ int main(int argc, char** argv)
 			app_svd_mcsk(msgio, config, params->num_files, params->num_files_case, \
 					params->chunk_size, params->l, params->output_file, \
 					params->k, params->sketch_width, params->sketch_depth, \
-					params->num_pc, params->eps, false);
+					params->num_pc, params->eps, false, false);
+		}
+		else if(strcmp(params->app_mode, "full") == 0)
+		{
+			float epsilon = params->eps * params->eps;
+			if(params->num_pc / epsilon > 16000)
+			{
+				fprintf(stderr, "Temporarily not supporting this range of parameters.\n");
+				exit(1);
+			}
+			app_svd_mcsk(msgio, config, params->num_files, params->num_files_case, \
+					params->chunk_size, params->l, params->output_file, \
+					params->k, params->sketch_width, params->sketch_depth, \
+					params->num_pc, params->eps, true, false);
 		}
 
                 if (do_ra) {
