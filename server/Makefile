@@ -4,6 +4,9 @@ SGX_SDK ?= /opt/intel/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
 SGX_PRERELEASE ?= 0
+OpenSSL_Path ?= /opt/openssl/1.1.0i
+Curl_Path ?= 
+SGX_SSL_Dir ?= /opt/intel/sgxssl
 
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
@@ -38,8 +41,11 @@ endif
 ######## App Settings ########
 
 CXX := g++
-Urts_Library_Name := sgx_urts
-OpenSSL_Path ?= /opt/openssl/1.1.0i
+ifneq ($(SGX_MODE), HW)
+    Urts_Library_Name := sgx_urts_sim
+else
+    Urts_Library_Name := sgx_urts
+endif
 App_C_Files := $(wildcard src/*.cpp) $(wildcard src/*.c)
 App_Include_Paths :=-I$(SGX_SDK)/include -I$(OpenSSL_Path)/include -Iinclude -IEnclave  -I. 
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths) -g
@@ -53,9 +59,14 @@ else
         App_C_Flags += -DNDEBUG -UEDEBUG -UDEBUG
 endif
 
+ifneq ($(SGX_MODE), HW)
+        App_C_Flags += -D_SIM
+endif
+
 App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -L$(OpenSSL_Path)/lib \
-    -Wl,-rpath=$(OpenSSL_Path)/lib \
-    -l$(Urts_Library_Name) -Wl,-Bstatic -lsgx_capable -Wl,-Bdynamic -lsgx_ukey_exchange -lpthread -ldl -lcurl -lssl -lcrypto -Wl,--as-needed
+    -L$(Curl_Path)/lib \
+    -Wl,-rpath=$(OpenSSL_Path)/lib,-rpath=$(Curl_Path)/lib \
+    -Wl,-Bstatic -lsgx_capable -Wl,-Bdynamic -l$(Urts_Library_Name) -lsgx_ukey_exchange -lpthread -ldl -lcurl -lssl -lcrypto -Wl,--as-needed
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
@@ -69,9 +80,12 @@ App_Name := app
 
 ######## Enclave Settings ########
 
-SGX_SSL_Dir ?= /opt/intel/sgxssl
 OPENSSL_LIBRARY_PATH = $(SGX_SSL_Dir)/lib64
-Trts_Library_Name := sgx_trts
+ifneq ($(SGX_MODE), HW)
+    Trts_Library_Name := sgx_trts_sim
+else
+    Trts_Library_Name := sgx_trts
+endif
 Service_Library_Name := sgx_tservice
 Crypto_Library_Name := sgx_tcrypto
 SGXSSL_Library_Name := sgx_tsgxssl

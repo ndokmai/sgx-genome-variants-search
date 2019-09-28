@@ -34,6 +34,7 @@ typedef struct config_struct {
 } config_t;
 
 int parse_config(int argc, char *argv[], config_t &config);
+int connect_no_ra(config_t &config, MsgIO **msgio);
 int connect(config_t &config, MsgIO **msgio);
 int remote_attestation(config_t &config, MsgIO *msgio);
 void finalize(MsgIO* msgio, config_t &config);

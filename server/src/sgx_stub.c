@@ -140,8 +140,13 @@ static void *_load_libsgx_uae_service()
 #ifdef _WIN32
 		h_libsgx_uae_service= LoadLibrary("libsgx_uae_service.dll");
 #else
+#ifdef _SIM 
+		h_libsgx_uae_service= dlopen("libsgx_uae_service_sim.so", RTLD_GLOBAL|RTLD_NOW);
+#else
 		h_libsgx_uae_service= dlopen("libsgx_uae_service.so", RTLD_GLOBAL|RTLD_NOW);
 #endif
+#endif
+        } else {
 		l_libsgx_uae_service= ( h_libsgx_uae_service == NULL ) ? -1 : 1;
 	}
 
@@ -154,7 +159,12 @@ static void *_load_libsgx_urts()
 #ifdef _WIN32
 		h_libsgx_urts= LoadLibrary("libsgx_urts.dll");
 #else
+#ifdef _SIM 
+		h_libsgx_urts= dlopen("libsgx_urts_sim.so", RTLD_GLOBAL|RTLD_NOW);
+#else 
 		h_libsgx_urts= dlopen("libsgx_urts.so", RTLD_GLOBAL|RTLD_NOW);
+#endif
+
 #endif
 		l_libsgx_urts= ( h_libsgx_urts == NULL ) ? -1 : 1;
 	}

@@ -370,6 +370,26 @@ int parse_config(int argc, char *argv[], config_t &config)
     return 0;
 }
 
+int connect_no_ra(config_t &config, MsgIO **_msgio) {
+    /* Initialize out support libraries */
+
+    crypto_init();
+
+    if ( config.flag_stdio ) {
+        *_msgio= new MsgIO();
+    } else {
+        try {
+            *_msgio= new MsgIO(NULL, (config.port == NULL) ? DEFAULT_PORT : config.port);
+        }
+        catch(...) {
+            return 1;
+        }
+    }
+    auto msgio = *_msgio;
+
+    return 0;
+}
+
 int connect(config_t &config, MsgIO **_msgio)
 {
     IAS_Connection *ias= NULL;
