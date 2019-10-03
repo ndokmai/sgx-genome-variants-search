@@ -4,13 +4,12 @@
 
 PORT_NUMBER=7777
 
-#One of "basic", "sketch", "sketch_topk", "pca_sketch"
+#One of "basic", "sketch", "sketch_topk", "preprocess", "full"
 APP_MODE=basic
 
-NUM_FILES=2000
+NUM_FILES=1000
 
-#VCF_DIR=../test_data/bin/
-VCF_DIR=/home/ckockan/test-data/chr1_all_ckz0/
+VCF_DIR=../test_data/bin/
 
 CHUNK_SIZE=500000
 

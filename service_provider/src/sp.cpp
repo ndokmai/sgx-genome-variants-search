@@ -352,6 +352,8 @@ void run_sp(MsgIO* msgio, uint32_t nf, char* fdir, char* ufname, uint32_t csz, i
 
 void new_parse(char* param_path, parameters** params, config_t& config)
 {
+
+        bool do_ra = false;
 	FILE* param_file;
 	char buf[1024];
 	char var_name[256];
@@ -465,27 +467,35 @@ void new_parse(char* param_path, parameters** params, config_t& config)
 				*/
 				else if(strcmp(var_name, "IAS_CLIENT_CERT_FILE") == 0)
 				{
+                                    if(do_ra) {
 					config.cert_file = strdup(token);
 					if(config.cert_file == NULL)
 					{
 						exit(1);
 					}
 					flag_cert = 1;
+                                    }
 				}
 				else if(strcmp(var_name, "IAS_CLIENT_KEY_FILE") == 0)
 				{
+                                    if(do_ra) {
 					config.cert_key_file = strdup(token);
 					if(config.cert_key_file == NULL)
 					{
 						exit(1);
 					}
+
+                                    }
 				}
 				else if(strcmp(var_name, "IAS_CLIENT_CERT_TYPE") == 0)
 				{
+                                    if(do_ra) {
 					strncpy((char*) config.cert_type, token, 4);
+                                    }
 				}
 				else if(strcmp(var_name, "IAS_REPORT_SIGNING_CA_FILE") == 0)
 				{
+                                    if(do_ra) {
 					if(!cert_load_file(&config.signing_ca, token))
 					{
 						crypto_perror("cert_load_file");
@@ -499,6 +509,7 @@ void new_parse(char* param_path, parameters** params, config_t& config)
 						exit(1);
 					}
 					flag_ca = 1;
+                                    }
 				}
 				else if(strcmp(var_name, "VERBOSE") == 0)
 				{
@@ -535,13 +546,13 @@ void new_parse(char* param_path, parameters** params, config_t& config)
 		exit(1);
 	}
 
-	if(!flag_cert)
+	if(!flag_cert && do_ra)
 	{
 		fprintf(stderr, "IAS-CERT-FILE is required.\n");
 		exit(1);
 	}
 
-	if(!flag_ca)
+	if(!flag_ca && do_ra)
 	{
 		fprintf(stderr, "IAS-SIGNING-CAFILE is required.\n");
 		exit(1);
@@ -568,8 +579,15 @@ int main(int argc, char** argv)
 	//parse(argv[0], NULL, config);
 
         bool do_ra = false;
+        bool proceed = true;
+
+        if(do_ra) {
+            proceed = !connect(config, &msgio);
+        } else {
+            proceed = !connect_no_ra(config, &msgio);
+        }
 	
-	if(!connect(config, &msgio)) 
+	if(proceed) 
 	{
                 if (do_ra) {
                     remote_attestation(config, msgio);

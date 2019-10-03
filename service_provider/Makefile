@@ -3,6 +3,7 @@ BASE_DIR:=$(abspath $(MAKEFILE_DIR))
 SGXSDK_DIR?=/opt/intel/sgxsdk
 HTTPPARSER_DIR:=$(BASE_DIR)/httpparser
 OPENSSL_DIR?=/opt/openssl/1.1.0i
+CURL_DIR?=
 
 CXX=g++-7
 
@@ -10,7 +11,8 @@ CXXFLAGS=-std=c++17 -g -fpermissive -Wall
 
 
 LDFLAGS= -L$(OPENSSL_DIR)/lib \
-	 -Wl,-rpath=$(OPENSSL_DIR)/lib \
+	 -L$(CURL_DIR)/lib \
+	 -Wl,-rpath=$(OPENSSL_DIR)/lib,-rpath=$(CURL_DIR)/lib \
 	 -Wl,--start-group -Wl,-Bstatic \
 	 -Wl,-Bdynamic -lcurl -lssl -lcrypto -Wl,--end-group
 

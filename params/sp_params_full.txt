@@ -5,7 +5,7 @@
 PORT_NUMBER=7777
 
 #One of "basic", "sketch", "sketch_topk", "preprocess", "full"
-APP_MODE=sketch_topk
+APP_MODE=full
 
 NUM_FILES=1000
 
