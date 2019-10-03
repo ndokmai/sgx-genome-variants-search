@@ -1,11 +1,11 @@
 #!/bin/bash
 
-case_indir="../test-data/case/"
-control_indir="../test-data/control/"
+case_indir="/workspace/sgx-genome-variants-search/test-data/case/"
+control_indir="/workspace/sgx-genome-variants-search/test-data/control/"
 
-outdir="../test-data/bin/"
+outdir="/workspace/sgx-genome-variants-search/test-data/bin/"
 
-unique_snp_output="../test-data/unique_snps.bin"
+unique_snp_output="/workspace/sgx-genome-variants-search/test-data/unique_snps.bin"
 
 for fname in "$case_indir"*.vcf; do
 	./compress_vcf "$fname" "1"
