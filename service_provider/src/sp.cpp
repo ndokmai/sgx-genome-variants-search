@@ -24,7 +24,7 @@
 #include "hexutil.h"
 #include "logfile.h"
 
-#define	MAX_FNAME	96
+#define	MAX_FNAME	256
 
 static const unsigned char def_service_private_key[32] = {
     0x90, 0xe7, 0x6c, 0xbb, 0x2d, 0x52, 0xa1, 0xce,
@@ -72,7 +72,7 @@ static const unsigned char def_service_private_key[32] = {
 	system("rm _args_");
 }*/
 
-void send_encrypted_vcf(MsgIO* msgio, uint32_t num_files, uint32_t chunk_size, int index[], char filenames[][MAX_FNAME])
+void send_encrypted_vcf(MsgIO* msgio, uint32_t num_files, uint32_t chunk_size, int index[], char** filenames)
 {
 	struct stat st;
 
@@ -230,11 +230,17 @@ void run_sp(MsgIO* msgio, uint32_t nf, char* fdir, char* ufname, uint32_t csz, i
 	// Directory traversal variables
 	DIR* dir;
 	struct dirent* ent;
+	uint32_t i;
 
 	// 2D array to hold filenames within the directory
-	char filenames[nf][MAX_FNAME];
+	char** filenames;
+	filenames = (char**) malloc(nf * sizeof(char*));
+	for(i = 0; i < nf; i++)
+	{
+		filenames[i] = (char*) malloc(MAX_FNAME * sizeof(char));
+	}
 
-	uint32_t i = 0;
+	i = 0;
 	// Check if the input VCF directory exists
 	if((dir = opendir(fdir)) != NULL)
 	{
@@ -336,6 +342,11 @@ void run_sp(MsgIO* msgio, uint32_t nf, char* fdir, char* ufname, uint32_t csz, i
 			break;
 	}
 
+	for(i = 0; i < nf; i++)
+	{
+		free(filenames[i]);
+	}
+	free(filenames);
 	return;
 }
 
