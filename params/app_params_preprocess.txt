@@ -1,0 +1,23 @@
+#======================================================================
+# SkSES options
+#======================================================================
+
+PORT_NUMBER=7777
+
+APP_MODE=preprocess
+
+NUM_FILES=1000
+
+NUM_CASE_FILES=500
+
+CHUNK_SIZE=500000
+
+NUM_TOP_SNPS=100
+
+NUM_PC=2
+
+OUTPUT_FILE=../server/top_snps_test.txt
+
+EPSILON=0.022
+
+#NUM_THREADS=1
