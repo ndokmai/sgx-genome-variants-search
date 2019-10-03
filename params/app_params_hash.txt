@@ -22,7 +22,7 @@ NUM_TOP_SNPS=100
 # FOR CMTF ONLY
 #CMTF_NUM_BUCKETS=21
 
-OUTPUT_FILE=../server/top_snps_cmtf.txt
+OUTPUT_FILE=../server/top_snps.txt
 
 #======================================================================
 # Server options
