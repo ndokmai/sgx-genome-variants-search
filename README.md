@@ -63,7 +63,7 @@ The project is divided into three logical parts under their respective directori
 cd ../service_provider
 ./sp ../params/sp_params_*.txt
 ```
-(* should be replaced by ```hash```, ```sketch``` or ```pca``` here)
+(* should be replaced by ```hash```, ```sketch```, ```preprocess``` or ```full``` here)
 
 ##### Run the Server
 
@@ -79,7 +79,7 @@ cd ../service_provider
 cd ../server
 ./app ../params/app_params_*.txt
 ```
-(* should be replaced by ```hash```, ```sketch``` or ```pca``` here)
+(* should be replaced by ```hash```, ```sketch```, ```preprocess``` or ```full``` here)
 
 ##### Expected Output
 
